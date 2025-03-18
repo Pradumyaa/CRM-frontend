@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    .sidebar {
+      width: 250px;
+      background-color: #ffffff;
+      border-right: 1px solid #e5e5e5;
+      height: 100vh;
+      position: fixed;
+      padding: 20px;
+    }
+
+    .sidebar h1 {
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+
+    .sidebar ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .sidebar ul li {
+      margin: 15px 0;
+    }
+
+    .sidebar ul li a {
+      text-decoration: none;
+      font-size: 16px;
+      color: #333;
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar ul li a.active {
+      color: #ffffff;
+      background-color: #7f3fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+    }
+
+    .sidebar .upgrade {
+      margin-top: 30px;
+      padding: 16px;
+      background: linear-gradient(135deg, #7f3fff, #b47fff);
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+    }
+
+    .sidebar .profile {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .content {
+      margin-left: 270px;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h2 {
+      font-size: 28px;
+    }
+
+    .header .search {
+      display: flex;
+      gap: 10px;
+    }
+
+    .search input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table th, table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #f2f2f2;
+    }
+
+    table th {
+      background-color: #f6f6f6;
+      font-weight: bold;
+    }
+
+    .status {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .status.active {
+      background-color: #e5f8e5;
+      color: #2c6f2c;
+    }
+
+    .status.inactive {
+      background-color: #fde7e7;
+      color: #a92b2b;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+      gap: 5px;
+    }
+
+    .pagination button {
+      border: none;
+      padding: 8px;
+      background: #f2f2f2;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .pagination button.active {
+      background: #7f3fff;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h1>Dashboard</h1>
+    <ul>
+      <li><a href="#" class="active">Dashboard</a></li>
+      <li><a href="#">Product</a></li>
+      <li><a href="#">Profile</a></li>
+      <li><a href="#">Income</a></li>
+      <li><a href="#">Organisation</a></li>
+      <li><a href="#">Help</a></li>
+    </ul>
+    <div class="upgrade">
+      <p>Upgrade to PRO to get access to all features!</p>
+      <button>Get PRO Now!</button>
+    </div>
+    <div class="profile">
+      <img src="https://via.placeholder.com/40" alt="profile" style="border-radius: 50%;">
+      <div>
+        <strong>Sriram</strong><br>
+        Admin
+      </div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="header">
+      <h2>Hello Sriram 👋</h2>
+      <div class="search">
+        <input type="text" placeholder="Search">
+        <button>Search</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Customer Name</th>
+          <th>Branch</th>
+          <th>Phone Number</th>
+          <th>Email</th>
+          <th>Location</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sriram</td>
+          <td>Admin</td>
+          <td>+91 1234567890</td>
+          <td>jane@microsoft.com</td>
+          <td>Chennai</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+        <tr>
+          <td>Manoj J Pradhan</td>
+          <td>Sales</td>
+          <td>+91 1234567890</td>
+          <td>floyd@yahoo.com</td>
+          <td>Chennai</td>
+          <td><span class="status inactive">Inactive</span></td>
+        </tr>
+        <tr>
+          <td>Vishal</td>
+          <td>Sales</td>
+          <td>+91 1234567890</td>
+          <td>ronald@adobe.com</td>
+          <td>Bengaluru</td>
+          <td><span class="status inactive">Inactive</span></td>
+        </tr>
+        <tr>
+          <td>Pradumnya Gaurav</td>
+          <td>Development</td>
+          <td>+91 1234567890</td>
+          <td>marvin@tesla.com</td>
+          <td>Gujarat</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+        <tr>
+          <td>Swathi</td>
+          <td>SEO Analyst</td>
+          <td>+91 1234567890</td>
+          <td>jerome@google.com</td>
+          <td>Chennai</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+        <tr>
+          <td>Saifuddin Hisham K M</td>
+          <td>Software Dev</td>
+          <td>+91 1234567890</td>
+          <td>kathryn@microsoft.com</td>
+          <td>Chennai</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+        <tr>
+          <td>Sanskriti Choudhry</td>
+          <td>UI-UX Designer</td>
+          <td>+91 1234567890</td>
+          <td>jacob@yahoo.com</td>
+          <td>Gujarat</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+        <tr>
+          <td>Gaurav Shukla</td>
+          <td>Development</td>
+          <td>+91 1234567890</td>
+          <td>kristin@facebook.com</td>
+          <td>Gujarat</td>
+          <td><span class="status inactive">Inactive</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="pagination">
+      <button>&lt;</button>
+      <button class="active">1</button>
+      <button>2</button>
+      <button>3</button>
+      <button>4</button>
+      <button>...</button>
+      <button>40</button>
+      <button>&gt;</button>
+    </div>
+  </div>
+</body>
+</html>
