@@ -106,7 +106,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
       >
         {/* Sidebar Content - Scrollable */}
         <div className="p-7 space-y-8 flex-1 overflow-y-auto">
-          <div className="flex items-center">
+          <div className="flex items-center px-5">
             <img src={logo} alt="Company Logo" />
           </div>
 

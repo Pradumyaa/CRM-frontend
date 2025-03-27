@@ -9,6 +9,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  font-size: 85%; /* Reset any unintended scaling */
+  zoom: 1; /* Prevent browser zoom issues */
+}
+
 body {
   background-color: rgb(243 244 246);
   font-family: 'Poppins', sans-serif;

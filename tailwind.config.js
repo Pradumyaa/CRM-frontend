@@ -6,7 +6,7 @@ export default {
                 poppins: ["Poppins", "sans-serif"],
             },
             fontSize: {
-                base: '0.75rem'
+                base: '0.5rem'
             }
         },
     },
