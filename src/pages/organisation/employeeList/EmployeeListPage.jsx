@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import SearchBar from "../components/SearchBar.jsx";
+import SearchBar from "../../components/SearchBar.jsx";
 import EmployeeTable from "./employee/EmployeeTable.jsx";
-import Pagination from "../components/Pagination.jsx";
+import Pagination from "../../components/Pagination.jsx";
 import AddEmployeeModal from "./employee/AddEmployeeModal.jsx";
 
-const EmployeeList = () => {
+const EmployeeListPage = () => {
   const itemsPerPage = 8;
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -66,7 +66,7 @@ const EmployeeList = () => {
       return;
 
     try {
-      await axios.delete(`https://crm-backend-6gcl.onrender.com/api/employees/${employeeId}`);
+      await axios.delete(`http://localhost:3000/api/employees/${employeeId}`);
       setEmployees((prev) => prev.filter((emp) => emp._id !== employeeId));
       setFilteredEmployees((prev) =>
         prev.filter((emp) => emp._id !== employeeId)
@@ -153,4 +153,4 @@ const EmployeeList = () => {
   );
 };
 
-export default EmployeeList;
+export default EmployeeListPage;

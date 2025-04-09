@@ -10,31 +10,32 @@ const AddEmployeeModal = ({
   isEditing,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Initialize default values when opening the modal
+
   useEffect(() => {
     if (isOpen) {
-      // Ensure proper initialization of employeeData with defaults
-      setEmployeeData(prevData => ({
-        ...prevData,
-        // Explicitly ensure status is set with a default value
-        status: prevData.status || "Active",
-        // Ensure address is properly initialized
-        address: prevData.address || { 
-          street: "", 
-          city: "", 
-          state: "", 
-          zipCode: "", 
-          country: "" 
-        }
-      }));
+      setEmployeeData((prevData) => {
+        const safeData = prevData || {}; // Ensure it's an object
+
+        return {
+          ...safeData,
+          status: safeData.status || "Active",
+          address: safeData.address || {
+            street: "",
+            city: "",
+            state: "",
+            zipCode: "",
+            country: "",
+          },
+          projects: safeData.projects || [],
+        };
+      });
     }
   }, [isOpen, setEmployeeData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEmployeeData((prevData) => ({
-      ...prevData,
+      ...(prevData || {}),
       [name]: value,
     }));
   };
@@ -77,75 +78,77 @@ const AddEmployeeModal = ({
 
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
-    setEmployeeData(prevData => ({
-      ...prevData,
-      address: { 
-        ...(prevData.address || {}), 
-        [name]: value 
-      }
+    setEmployeeData((prevData) => ({
+      ...(prevData || {}),
+      address: {
+        ...(prevData?.address || {}),
+        [name]: value,
+      },
     }));
   };
 
   const validateEmployeeData = (data) => {
     console.log("Validating data:", data);
-    
+
     const requiredFields = [
       "name",
       "jobTitle",
-      "description",
       "salary",
       "phoneNumber",
       "email",
       "status",
     ];
-  
+
     // Check missing fields
     const missingFields = requiredFields.filter(
       (field) => !data[field] || data[field].toString().trim() === ""
     );
-  
+
     if (missingFields.length > 0) {
       throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
     }
-  
+
     // Check salary (should be a valid number)
     if (isNaN(Number(data.salary)) || Number(data.salary) <= 0) {
       throw new Error("Salary must be a valid positive number.");
     }
-  
+
     // Validate phone number (allows country codes)
     if (!/^\+?[\d\s-]{10,}$/.test(data.phoneNumber)) {
       throw new Error("Invalid phone number format.");
     }
-  
+
     // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       throw new Error("Invalid email format.");
     }
-  
+
     // Ensure address is properly initialized
     if (!data.address || typeof data.address !== "object") {
       throw new Error("Address information is missing.");
     }
-  
+
     const addressFields = ["street", "city", "state", "zipCode", "country"];
     const missingAddressFields = addressFields.filter(
-      (field) => !data.address[field] || data.address[field].toString().trim() === ""
+      (field) =>
+        !data.address[field] || data.address[field].toString().trim() === ""
     );
-  
+
     if (missingAddressFields.length > 0) {
-      throw new Error(`Missing address fields: ${missingAddressFields.join(", ")}`);
+      throw new Error(
+        `Missing address fields: ${missingAddressFields.join(", ")}`
+      );
     }
-  
+
     return true;
   };
-  
+
   const formatEmployeeData = (data) => {
     // Generate credentials for new employees
     const credentials = !isEditing
       ? {
           employeeId: generateEmployeeId(),
-          password: generatePassword()
+          password: generatePassword(),
         }
       : {};
 
@@ -170,34 +173,37 @@ const AddEmployeeModal = ({
   const handleSave = async () => {
     try {
       setIsSubmitting(true);
-      
+
       // Log data before validation for debugging
-      console.log("Employee Data Before Validation:", JSON.stringify(employeeData, null, 2));
+      console.log(
+        "Employee Data Before Validation:",
+        JSON.stringify(employeeData, null, 2)
+      );
 
       // Ensure status is explicitly set before validation
       const dataToValidate = {
         ...employeeData,
-        status: employeeData.status || "Active"
+        status: employeeData.status || "Active",
       };
 
       // Validate employee data
       validateEmployeeData(dataToValidate);
-  
+
       // Format employee data
       const formattedData = formatEmployeeData(dataToValidate);
-  
+
       // Determine the API endpoint and method
       const apiEndpoint = isEditing
-        ? `https://crm-backend-6gcl.onrender.com/api/employees/${employeeData.employeeId}`
-        : "https://crm-backend-6gcl.onrender.com/api/employees";
+        ? `http://localhost:3000/api/employees/${employeeData.employeeId}`
+        : "http://localhost:3000/api/employees";
       const apiMethod = isEditing ? axios.put : axios.post;
-  
+
       // Log the data being sent to API for debugging
       console.log("Sending to API:", JSON.stringify(formattedData, null, 2));
-      
+
       // Make the API request
       const response = await apiMethod(apiEndpoint, formattedData);
-  
+
       // Handle success response
       if ([200, 201].includes(response.status)) {
         onSave();
@@ -209,50 +215,71 @@ const AddEmployeeModal = ({
       console.error("Error saving employee:", error);
       alert(
         error.response?.data?.message ||
-        error.message ||
-        "Error saving employee."
+          error.message ||
+          "Error saving employee."
       );
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-opacity-70 backdrop-blur-sm">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl border-2 border-gray-600">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto border-2 border-gray-600">
         <h2 className="text-3xl font-semibold mb-6 text-center text-[#5932ea]">
           {isEditing ? "Edit Employee" : "Add Employee"}
         </h2>
-        {/* Add debug info to help troubleshoot */}
-        <div className="mb-4 text-xs text-gray-500">
-          Status: {employeeData.status || "Not set"}
-        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Basic Information */}
-          {[
-            "name",
-            "jobTitle",
-            "description",
-            "salary",
-            "phoneNumber",
-            "email",
-          ].map((field) => (
-            <input
-              key={field}
-              type={field === "salary" ? "number" : "text"}
-              name={field}
-              placeholder={
-                field.charAt(0).toUpperCase() +
-                field
-                  .slice(1)
-                  .replace(/([A-Z])/g, " $1")
-                  .trim()
-              }
-              value={employeeData[field] || ""}
-              onChange={handleChange}
-              className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black focus:ring-2 focus:ring-[#5932ea] focus:outline-none focus:border-[#5932ea] transition"
-            />
-          ))}
+          {["name", "jobTitle", "salary", "phoneNumber", "email"].map(
+            (field) => (
+              <input
+                key={field}
+                type={field === "salary" ? "number" : "text"}
+                name={field}
+                placeholder={
+                  field.charAt(0).toUpperCase() +
+                  field
+                    .slice(1)
+                    .replace(/([A-Z])/g, " $1")
+                    .trim()
+                }
+                value={employeeData[field] || ""}
+                onChange={handleChange}
+                className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black focus:ring-2 focus:ring-[#5932ea] focus:outline-none focus:border-[#5932ea] transition"
+              />
+            )
+          )}
+
+          <input
+            type="text"
+            name="department"
+            placeholder="Department"
+            value={employeeData.department || ""}
+            onChange={handleChange}
+            className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black"
+          />
+
+          <select
+            name="location"
+            value={employeeData.location || ""}
+            onChange={handleChange}
+            className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black focus:ring-2 focus:ring-[#5932ea] focus:outline-none focus:border-[#5932ea] transition duration-300"
+          >
+            <option value="">Select Location</option>
+            <option value="In-Office">In-Office</option>
+            <option value="Remote">Remote</option>
+            <option value="Hybrid">Hybrid</option>
+          </select>
+
+          <input
+            type="text"
+            name="manager"
+            placeholder="Manager"
+            value={employeeData.manager || ""}
+            onChange={handleChange}
+            className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black"
+          />
 
           {/* Resume Upload */}
           <input
@@ -264,10 +291,10 @@ const AddEmployeeModal = ({
             className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black focus:ring-2 focus:ring-[#5932ea] focus:outline-none focus:border-[#5932ea] transition"
           />
 
-          {/* Status Selection - Make more prominent */}
+          {/* Status Selection */}
           <select
             name="status"
-            value={employeeData.status || "Active"}
+            value={employeeData.status || ""}
             onChange={handleChange}
             className="w-full p-4 border-2 border-gray-400 rounded-lg bg-gray-200 text-black focus:ring-2 focus:ring-[#5932ea] focus:outline-none focus:border-[#5932ea] transition"
           >

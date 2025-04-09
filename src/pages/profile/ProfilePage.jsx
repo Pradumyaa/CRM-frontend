@@ -241,10 +241,6 @@ const ProfilePage = () => {
                     value={employeeData.id || "N/A"}
                   />
                   <InfoCard
-                    label="Position"
-                    value={employeeData.position || "N/A"}
-                  />
-                  <InfoCard
                     label="Manager"
                     value={employeeData.manager || "N/A"}
                   />
@@ -253,7 +249,7 @@ const ProfilePage = () => {
                     value={employeeData.department || "N/A"}
                   />
                   <InfoCard
-                    label="Location"
+                    label="Work Location"
                     value={employeeData.location || "N/A"}
                   />
                   <InfoCard

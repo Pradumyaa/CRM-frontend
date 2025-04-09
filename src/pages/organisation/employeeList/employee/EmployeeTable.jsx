@@ -32,7 +32,7 @@ const EmployeeTable = ({ employees, filteredEmployees, onEdit, onDelete }) => {
         </button>
         <button
           className="bg-red-500 text-white px-3 py-1 rounded-md"
-          onClick={() => onDelete(employee._id)} // ✅ Delete button now works
+          onClick={() => onDelete(employee.employeeId)} // ✅ Delete button now works
         >
           Delete
         </button>

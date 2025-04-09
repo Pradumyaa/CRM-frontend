@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
-import { FaChevronRight, FaChevronDown, FaBars } from "react-icons/fa";
-import { MdSettings, MdLogout } from "react-icons/md";
-import { RiDashboardHorizontalLine } from "react-icons/ri";
 import {
-  FaHome,
-  FaBox,
-  FaUserAlt,
-  FaWallet,
-  FaComments as FaChat,
-  FaRegCalendarAlt
-} from "react-icons/fa";
+  MdKeyboardArrowRight,
+  MdKeyboardArrowDown,
+  MdMenu,
+} from "react-icons/md";
+import {
+  MdSettings,
+  MdLogout,
+  MdDashboard,
+  MdPerson,
+  MdShoppingBag,
+  MdAttachMoney,
+  MdBusinessCenter,
+  MdDateRange,
+  MdChat,
+  MdWorkspaces,
+} from "react-icons/md";
 import { useNavigate } from "react-router-dom";
-import logo from "../../../assets/GetMaxLogo.svg"
+import logo from "../../../assets/GetMaxLogo.svg";
 
 const Sidebar = ({ selectedItem, onItemSelect }) => {
   const [openDropdown, setOpenDropdown] = useState("");
   const [user, setUser] = useState({ name: "Guest", isAdmin: false });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,11 +49,11 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   }, []);
 
   const navigationItems = [
-    { label: "Dashboard", icon: <FaHome />, key: "dashboard" },
-    { label: "Profile", icon: <FaUserAlt />, key: "profile" },
+    { label: "Dashboard", icon: <MdDashboard size={18} />, key: "dashboard" },
+    { label: "Profile", icon: <MdPerson size={18} />, key: "profile" },
     {
       label: "Product",
-      icon: <FaBox />,
+      icon: <MdShoppingBag size={18} />,
       hasDropdown: true,
       key: "product",
       subItems: [
@@ -55,12 +62,12 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
         { label: "Orders", key: "orders" },
       ],
     },
-    { label: "Income", icon: <FaWallet />, key: "income" },
+    { label: "Income", icon: <MdAttachMoney size={18} />, key: "income" },
     ...(user.isAdmin
       ? [
           {
             label: "Organisation",
-            icon: <RiDashboardHorizontalLine />,
+            icon: <MdBusinessCenter size={18} />,
             hasDropdown: true,
             key: "organisation",
             subItems: [
@@ -70,8 +77,9 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
           },
         ]
       : []),
-    { label: "Attendance", icon: <FaRegCalendarAlt />, key: "help" },
-    { label: "Chat", icon: <FaChat />, key: "chat" },
+    { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
+    { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
+    { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
   ];
 
   const handleItemClick = (item) => {
@@ -88,97 +96,300 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
     if (onItemSelect) onItemSelect(subItemKey);
   };
 
+  const handleMouseEnter = (item) => {
+    setHoveredItem(item);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredItem(null);
+  };
+
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="md:hidden p-4 text-gray-600 hover:text-black"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      >
-        <FaBars size={24} />
-      </button>
-
       {/* Sidebar */}
       <aside
-        className={`bg-white shadow-lg border-r border-gray-400 fixed md:relative transition-all duration-300 flex flex-col h-screen ${
-          isSidebarOpen ? "w-[250px]" : "w-0 md:w-[250px]"
+        className={`bg-white shadow-lg border-r border-gray-200 fixed md:relative transition-all duration-300 ease-in-out flex flex-col h-screen ${
+          isSidebarOpen ? "w-[220px]" : "w-[60px]"
         }`}
       >
-        {/* Sidebar Content - Scrollable */}
-        <div className="p-7 space-y-8 flex-1 overflow-y-auto">
-          <div className="flex items-center px-5">
-            <img src={logo} alt="Company Logo" />
-          </div>
+        {/* Sidebar Header */}
+        <div
+          className={`flex items-center border-b border-gray-200 py-3 ${
+            isSidebarOpen ? "px-4 justify-between" : "justify-center"
+          }`}
+        >
+          {/* Hide logo when collapsed */}
+          {isSidebarOpen && (
+            <div className="transition-opacity duration-300">
+              <img src={logo} alt="Company Logo" className="h-6" />
+            </div>
+          )}
 
-          <nav className="space-y-4">
+          {/* Sidebar Toggle Button - centered when collapsed */}
+          <button
+            className={`text-gray-500 hover:text-[#5932EA] transition-colors duration-200 p-1 rounded-md hover:bg-gray-100 ${
+              isSidebarOpen ? "ml-auto" : ""
+            }`}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            aria-label={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+          >
+            <MdMenu size={18} />
+          </button>
+        </div>
+
+        {/* Sidebar Content */}
+        <div className="py-2 px-2 flex-1 overflow-y-auto overflow-x-hidden">
+          <nav className="space-y-1">
             {navigationItems.map((item) => (
-              <div key={item.key}>
-                <button
-                  onClick={() => handleItemClick(item)}
-                  className={`w-full flex justify-between items-center gap-3 py-2 px-3 rounded-md transition-all duration-300 ${
-                    selectedItem === item.key || openDropdown === item.label
-                      ? "bg-[#5932EA] text-white"
-                      : "text-[#9197b3] hover:text-gray-950 hover:font-bold hover:shadow-md"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </div>
-                  {item.hasDropdown &&
-                    (openDropdown === item.label ? (
-                      <FaChevronDown className="h-4 w-4" />
-                    ) : (
-                      <FaChevronRight className="h-4 w-4" />
-                    ))}
-                </button>
-
-                {item.hasDropdown && openDropdown === item.label && (
-                  <div className="mt-1 p-2 rounded-md space-y-2">
-                    {item.subItems.map((subItem) => (
-                      <button
-                        key={subItem.key}
-                        onClick={() =>
-                          handleSubItemClick(item.label, subItem.key)
-                        }
-                        className={`w-full flex justify-start items-center px-3 py-2 rounded-md transition-all ${
-                          selectedItem === subItem.key
-                            ? "bg-gray-300 text-black font-semibold"
-                            : "text-gray-700 hover:bg-gray-300"
+              <div key={item.key} className="relative">
+                {/* Main menu item */}
+                <div className="group relative">
+                  <button
+                    onClick={() => handleItemClick(item)}
+                    onMouseEnter={() => handleMouseEnter(item)}
+                    onMouseLeave={handleMouseLeave}
+                    className={`w-full flex justify-between items-center gap-2 py-2 px-2 rounded-md transition-all duration-50 ${
+                      selectedItem === item.key || openDropdown === item.label
+                        ? "bg-[#5932EA] text-white hover:bg-white hover:text-[#5932EA]"
+                        : "text-[#9197b3] hover:bg-[#F6F4FF] hover:text-[#5932EA] group-hover:bg-[#F6F4FF] group-hover:text-[#5932EA]"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center gap-2 ${
+                        !isSidebarOpen ? "justify-center w-full" : ""
+                      }`}
+                    >
+                      <div
+                        className={`transition-colors duration-50 ${
+                          selectedItem === item.key ||
+                          openDropdown === item.label
+                            ? "text-white group-hover:text-[#5932EA]"
+                            : "text-[#5932EA]"
                         }`}
                       >
-                        <FaChevronRight className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{subItem.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        {item.icon}
+                      </div>
+                      <span
+                        className={`font-medium text-sm transition-all duration-50 ${
+                          isSidebarOpen
+                            ? "block opacity-100"
+                            : "hidden opacity-0 w-0"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                    </div>
+                    {item.hasDropdown && isSidebarOpen && (
+                      <div className="text-sm">
+                        {openDropdown === item.label ? (
+                          <MdKeyboardArrowDown
+                            size={16}
+                            className={`transition-colors duration-50 ${
+                              selectedItem === item.key ||
+                              openDropdown === item.label
+                                ? "text-white group-hover:text-[#5932EA]"
+                                : "text-[#5932EA]"
+                            }`}
+                          />
+                        ) : (
+                          <MdKeyboardArrowRight
+                            size={16}
+                            className={`transition-colors duration-50 ${
+                              selectedItem === item.key ||
+                              openDropdown === item.label
+                                ? "text-white group-hover:text-[#5932EA]"
+                                : "text-[#5932EA]"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Tooltip using portal to render outside the sidebar to prevent scrollbars */}
+                  {!isSidebarOpen &&
+                    hoveredItem &&
+                    hoveredItem.key === item.key && (
+                      <div
+                        style={{
+                          position: "fixed",
+                          left: "50px", // Adjusted to be slightly to the right of the icon
+                          top: (() => {
+                            const element = document.getElementById(item.key);
+                            if (element) {
+                              const rect = element.getBoundingClientRect();
+                              return `${rect.top + window.scrollY + rect.height / 2 - 10}px`; // Adjusted for better centering
+                            }
+                            return "0px";
+                          })(),
+                          zIndex: 1000,
+                        }}
+                        className="bg-white shadow-md rounded-md py-2 px-3 min-w-[100px] text-[#5932EA] text-sm font-medium"
+                        id={`tooltip-${item.key}`}
+                      >
+                        {item.label}
+                        <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                      </div>
+                    )}
+
+                  {/* Tooltip using portal to render outside the sidebar to prevent scrollbars */}
+                  {/* {!isSidebarOpen &&
+                    hoveredItem &&
+                    hoveredItem.key === item.key && (
+                      <div
+                        style={{
+                          position: "fixed",
+                          left: "60px", // Fixed position just to the right of sidebar
+                          top: ((e) => {
+                            const rect = document
+                              .querySelector(
+                                `button[aria-label="${item.label}"]`
+                              )
+                              ?.getBoundingClientRect();
+                            return rect
+                              ? rect.top + rect.height / 2 - 15 + "px"
+                              : "0px";
+                          })(),
+                          zIndex: 1000,
+                        }}
+                        className="bg-white shadow-md rounded-md py-2 px-3 min-w-[100px] text-[#5932EA] text-sm font-medium"
+                        id={`tooltip-${item.key}`}
+                      >
+                        {item.label}
+                        <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                      </div>
+                    )} */}
+                </div>
+
+                {/* Dropdown content with visual indicators */}
+                {item.hasDropdown &&
+                  openDropdown === item.label &&
+                  isSidebarOpen && (
+                    <div className="mt-1 space-y-1 overflow-hidden transition-all duration-200 ease-in-out">
+                      {item.subItems.map((subItem) => (
+                        <div key={subItem.key} className="relative pl-6 pr-2">
+                          {/* Visual connection line */}
+                          <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-400"></div>
+
+                          <button
+                            onClick={() =>
+                              handleSubItemClick(item.label, subItem.key)
+                            }
+                            className={`w-full flex justify-start items-center px-3 py-2 rounded-md text-sm transition-all duration-200 hover:bg-slate-300 ${
+                              selectedItem === subItem.key
+                                ? "bg-[#F6F4FF] text-[#5932EA] font-medium shadow-sm"
+                                : "text-[#9197b3] hover:text-[#5932EA]"
+                            }`}
+                          >
+                            <div className="flex items-center">
+                              {/* Horizontal connection line */}
+                              <div className="absolute left-3 top-1/2 w-2.5 h-0.5 bg-gray-400"></div>
+
+                              {/* Visual indicator for selection */}
+                              <div
+                                className={`w-2 h-2 rounded-full mr-2 ${
+                                  selectedItem === subItem.key
+                                    ? "bg-[#5932EA]"
+                                    : "border border-gray-300"
+                                }`}
+                              ></div>
+
+                              <span
+                                className={`${
+                                  selectedItem === subItem.key
+                                    ? "text-[#5932EA]"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {subItem.label}
+                              </span>
+                            </div>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
           </nav>
         </div>
 
-        {/* Bottom Section - Fixed */}
-        <div className="p-4 bg-white border-t border-gray-300">
-          <div className="flex items-center justify-between w-full p-4">
-            <button
-              onClick={() => {
-                localStorage.removeItem("employeeId");
-                localStorage.removeItem("userData");
-                navigate("/login");
-              }}
-              className="w-full flex items-center gap-2 text-gray-700 hover:text-blue-600 hover:font-semibold"
-            >
-              <MdLogout />
-              Logout
-            </button>
-            <button className="w-full text-left text-gray-700 hover:text-blue-600 hover:font-semibold">
-              Settings
-            </button>
+        {/* Bottom Section */}
+        <div
+          className={`border-t border-gray-200 transition-all duration-300 ${
+            isSidebarOpen ? "p-3" : "p-2"
+          }`}
+        >
+          <div
+            className={`flex ${
+              isSidebarOpen ? "justify-between" : "flex-col items-center"
+            } gap-2`}
+          >
+            <div className="relative">
+              <button
+                onClick={() => {
+                  localStorage.removeItem("employeeId");
+                  localStorage.removeItem("userData");
+                  navigate("/login");
+                }}
+                onMouseEnter={() =>
+                  handleMouseEnter({ key: "logout", label: "Logout" })
+                }
+                onMouseLeave={handleMouseLeave}
+                className="flex items-center gap-2 text-[#9197b3] hover:text-[#5932EA] hover:bg-[#F6F4FF] transition-all duration-200 p-2 rounded-md w-full justify-center"
+              >
+                <MdLogout size={18} />
+                <span
+                  className={`text-sm ${isSidebarOpen ? "block" : "hidden"}`}
+                >
+                  Logout
+                </span>
+              </button>
+
+              {/* Tooltip for logout */}
+              {!isSidebarOpen &&
+                hoveredItem &&
+                hoveredItem.key === "logout" && (
+                  <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
+                    Logout
+                    <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                  </div>
+                )}
+            </div>
+
+            <div className="relative">
+              <button
+                className="flex items-center gap-2 text-[#9197b3] hover:text-[#5932EA] hover:bg-[#F6F4FF] transition-all duration-200 p-2 rounded-md w-full justify-center"
+                onMouseEnter={() =>
+                  handleMouseEnter({ key: "settings", label: "Settings" })
+                }
+                onMouseLeave={handleMouseLeave}
+              >
+                <MdSettings size={18} />
+                <span
+                  className={`text-sm ${isSidebarOpen ? "block" : "hidden"}`}
+                >
+                  Settings
+                </span>
+              </button>
+
+              {/* Tooltip for settings */}
+              {!isSidebarOpen &&
+                hoveredItem &&
+                hoveredItem.key === "settings" && (
+                  <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
+                    Settings
+                    <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                  </div>
+                )}
+            </div>
           </div>
-          <div className="mt-3 text-center text-sm text-gray-500">
-            <p>&copy; Dashboard. All rights reserved.</p>
-          </div>
+
+          {isSidebarOpen && (
+            <div className="mt-3 text-center text-xs text-gray-400">
+              <p>&copy; Dashboard. All rights reserved.</p>
+            </div>
+          )}
         </div>
       </aside>
     </>
@@ -186,6 +397,3 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
 };
 
 export default Sidebar;
-
-
-// export default Sidebar;
