@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { Navigate } from 'react-router-dom';
 import axios from "axios";
 import Sidebar from "./pages/components/sidebar/Sidebar.jsx";
 import LoginPage from "./pages/login/LoginPage.jsx";
