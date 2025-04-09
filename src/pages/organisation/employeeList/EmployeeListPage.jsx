@@ -66,7 +66,7 @@ const EmployeeListPage = () => {
       return;
 
     try {
-      await axios.delete(`http://localhost:3000/api/employees/${employeeId}`);
+      await axios.delete(`https://crm-backend-6gcl.onrender.com/api/employees/${employeeId}`);
       setEmployees((prev) => prev.filter((emp) => emp._id !== employeeId));
       setFilteredEmployees((prev) =>
         prev.filter((emp) => emp._id !== employeeId)

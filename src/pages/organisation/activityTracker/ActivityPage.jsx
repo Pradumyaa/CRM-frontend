@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 
 // Base API URL from environment variable
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://crm-backend-6gcl.onrender.com';
 
 const AdminPanel = () => {
   const [employees, setEmployees] = useState([]);

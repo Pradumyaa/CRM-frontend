@@ -194,8 +194,8 @@ const AddEmployeeModal = ({
 
       // Determine the API endpoint and method
       const apiEndpoint = isEditing
-        ? `http://localhost:3000/api/employees/${employeeData.employeeId}`
-        : "http://localhost:3000/api/employees";
+        ? `https://crm-backend-6gcl.onrender.com/api/employees/${employeeData.employeeId}`
+        : "https://crm-backend-6gcl.onrender.com/api/employees";
       const apiMethod = isEditing ? axios.put : axios.post;
 
       // Log the data being sent to API for debugging

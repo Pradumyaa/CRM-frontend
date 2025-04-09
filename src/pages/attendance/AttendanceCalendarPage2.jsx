@@ -54,7 +54,7 @@ function AttendanceCalendarPage() {
   
   const checkIfAdmin = async (id) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/employees/${id}`);
+      const response = await fetch(`https://crm-backend-6gcl.onrender.com/api/employees/${id}`);
       if (response.ok) {
         const data = await response.json();
         // setIsAdmin(data.employee.isAdmin || false);
@@ -264,11 +264,11 @@ function AttendanceCalendarPage() {
       const endDateStr = formatDateToString(lastDay);
 
       // Construct API URL based on admin status
-      let apiUrl = `http://localhost:3000/api/calendar/attendance?employeeId=${employeeId}&startDate=${startDateStr}&endDate=${endDateStr}`;
+      let apiUrl = `https://crm-backend-6gcl.onrender.com/api/calendar/attendance?employeeId=${employeeId}&startDate=${startDateStr}&endDate=${endDateStr}`;
       
       // If admin, fetch all employees or allow filtering
       if (isAdmin) {
-        apiUrl = `http://localhost:3000/api/calendar/attendance/all?startDate=${startDateStr}&endDate=${endDateStr}`;
+        apiUrl = `https://crm-backend-6gcl.onrender.com/api/calendar/attendance/all?startDate=${startDateStr}&endDate=${endDateStr}`;
       }
 
       // Fetch attendance data from API
@@ -345,7 +345,7 @@ function AttendanceCalendarPage() {
     if (!isAdmin) return;
 
     try {
-      const response = await fetch("http://localhost:3000/api/calendar/attendance/day-off/approve", {
+      const response = await fetch("https://crm-backend-6gcl.onrender.com/api/calendar/attendance/day-off/approve", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -405,7 +405,7 @@ function AttendanceCalendarPage() {
 
       // Call API to request day off
       const response = await fetch(
-        "http://localhost:3000/api/calendar/attendance/day-off",
+        "https://crm-backend-6gcl.onrender.com/api/calendar/attendance/day-off",
         {
           method: "POST",
           headers: {
@@ -496,7 +496,7 @@ function AttendanceCalendarPage() {
       setClockInLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/calendar/attendance/clock-in",
+        "https://crm-backend-6gcl.onrender.com/api/calendar/attendance/clock-in",
         {
           method: "POST",
           headers: {
@@ -577,7 +577,7 @@ function AttendanceCalendarPage() {
       setClockOutLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/calendar/attendance/clock-out",
+        "https://crm-backend-6gcl.onrender.com/api/calendar/attendance/clock-out",
         {
           method: "POST",
           headers: {
@@ -1048,7 +1048,7 @@ function AttendanceCalendarPage() {
     
     try {
       const response = await fetch(
-        `http://localhost:3000/api/attendance/pending-requests?adminId=${employeeId}`
+        `https://crm-backend-6gcl.onrender.com/api/attendance/pending-requests?adminId=${employeeId}`
       );
       
       if (!response.ok) {

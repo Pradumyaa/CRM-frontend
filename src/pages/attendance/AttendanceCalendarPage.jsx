@@ -293,7 +293,7 @@ const AttendanceCalendarPage = () => {
       // For demo purposes, generate mock data if API call fails
       try {
         const response = await fetch(
-          `http://localhost:3000/api/calendar/attendance?employeeId=${empId}&startDate=${startDate}&endDate=${endDate}`,
+          `https://crm-backend-6gcl.onrender.com/api/calendar/attendance?employeeId=${empId}&startDate=${startDate}&endDate=${endDate}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -718,7 +718,7 @@ const AttendanceCalendarPage = () => {
       let clockInData;
       try {
         const response = await fetch(
-          "http://localhost:3000/api/calendar/attendance/clock-in",
+          "https://crm-backend-6gcl.onrender.com/api/calendar/attendance/clock-in",
           {
             method: "POST",
             headers: {
@@ -847,7 +847,7 @@ const AttendanceCalendarPage = () => {
       let clockOutData;
       try {
         const response = await fetch(
-          "http://localhost:3000/api/calendar/attendance/clock-out",
+          "https://crm-backend-6gcl.onrender.com/api/calendar/attendance/clock-out",
           {
             method: "POST",
             headers: {
