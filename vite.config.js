@@ -15,6 +15,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: '0.0.0.0',
+    strictPort: true,
+    allowedHosts: ['e96b-110-226-179-139.ngrok-free.app']
+  },
   optimizeDeps: {
     include: [
       'crypto-browserify',

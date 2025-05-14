@@ -1,3 +1,4 @@
+// Updated FolderItem.jsx
 import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
@@ -48,7 +49,9 @@ const FolderItem = ({
   const [isAddProjectListModalOpen, setIsAddProjectListModalOpen] =
     useState(false);
   const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
-  const [isStarred, setIsStarred] = useState(false);
+  const [isStarred, setIsStarred] = useState(folder.isStarred || false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState(null);
   const menuRef = useRef(null);
 
   // Handle outside clicks for dropdown menu
@@ -94,32 +97,66 @@ const FolderItem = ({
     setShowMenu(false);
   };
 
-  const handleDeleteFolder = (e) => {
+  const handleDeleteFolder = async (e) => {
     e.stopPropagation();
-    if (
-      confirm(
-        `Are you sure you want to delete "${folder.name}" folder? This action cannot be undone.`
-      )
-    ) {
-      deleteFolder(spaceId, folder.id);
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${folder.name}" folder? This action cannot be undone.`
+    );
+    
+    if (confirmDelete) {
+      try {
+        setIsDeleting(true);
+        setError(null);
+        await deleteFolder(spaceId, folder.id);
+      } catch (err) {
+        setError(err.message || "Failed to delete folder");
+        console.error("Error deleting folder:", err);
+      } finally {
+        setIsDeleting(false);
+        setShowMenu(false);
+      }
+    } else {
+      setShowMenu(false);
     }
-    setShowMenu(false);
   };
 
-  const toggleStar = (e) => {
+  const toggleStar = async (e) => {
     e.stopPropagation();
+    // In a real implementation, this would update the folder in the backend
     setIsStarred(!isStarred);
     setShowMenu(false);
+    
+    // We would update the folder in the backend with something like:
+    // try {
+    //   await updateFolder(spaceId, folder.id, { isStarred: !isStarred });
+    // } catch (err) {
+    //   console.error("Error starring folder:", err);
+    //   setIsStarred(isStarred); // Revert on error
+    // }
   };
+  
+  // Show error message if delete failed
+  if (error) {
+    setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+  }
 
   return (
     <li
       className={`mb-1 rounded-md overflow-hidden transition-colors duration-200 
         ${matchesSearch ? "bg-indigo-50/50" : ""}`}
     >
+      {error && (
+        <div className="bg-red-50 text-red-600 text-xs p-1 mb-1 rounded">
+          {error}
+        </div>
+      )}
+      
       {/* Folder Header */}
       <div
         className={`flex items-center px-3 py-2 cursor-pointer rounded-md transition-colors duration-150 ${
+          isDeleting ? "opacity-50 pointer-events-none" : ""
+        } ${
           activeHover
             ? "bg-gray-100"
             : matchesSearch
@@ -157,7 +194,7 @@ const FolderItem = ({
         </span>
 
         {/* Controls (visible on hover) */}
-        {activeHover && (
+        {activeHover && !isDeleting && (
           <div className="ml-auto flex items-center gap-1">
             <button
               className="p-1 rounded-full hover:bg-gray-200 text-gray-600"
@@ -209,6 +246,8 @@ const FolderItem = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowMenu(false);
+                      // Would implement share functionality here
+                      alert("Share functionality would open here");
                     }}
                   >
                     <Share2 size={14} className="mr-2" />
@@ -219,6 +258,8 @@ const FolderItem = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowMenu(false);
+                      // Would implement export functionality here
+                      alert("Export functionality would open here");
                     }}
                   >
                     <Download size={14} className="mr-2" />
@@ -235,6 +276,16 @@ const FolderItem = ({
                 </div>
               )}
             </div>
+          </div>
+        )}
+        
+        {/* Loading indicator when deleting */}
+        {isDeleting && (
+          <div className="ml-auto">
+            <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
           </div>
         )}
       </div>
@@ -262,6 +313,8 @@ const FolderItem = ({
             <ProjectListsList
               projectLists={filteredProjectLists}
               onSelectProjectList={onSelectProjectList}
+              spaceId={spaceId}
+              folderId={folder.id}
             />
           ) : (
             folder.projectLists.length === 0 && (

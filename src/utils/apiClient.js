@@ -1,7 +1,7 @@
-// utils/apiClient.js
+// src/utils/apiClient.js
 
 // For Vite, use import.meta.env instead of process.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
  * Base API client for making requests to the backend
@@ -16,14 +16,14 @@ const apiClient = {
     const headers = {
       'Content-Type': 'application/json',
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     return headers;
   },
-  
+
   /**
    * Make a GET request
    * @param {string} endpoint - API endpoint
@@ -35,18 +35,19 @@ const apiClient = {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`GET ${endpoint} failed:`, error);
       throw error;
     }
   },
-  
+
   /**
    * Make a POST request
    * @param {string} endpoint - API endpoint
@@ -60,18 +61,19 @@ const apiClient = {
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`POST ${endpoint} failed:`, error);
       throw error;
     }
   },
-  
+
   /**
    * Make a PUT request
    * @param {string} endpoint - API endpoint
@@ -85,18 +87,19 @@ const apiClient = {
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`PUT ${endpoint} failed:`, error);
       throw error;
     }
   },
-  
+
   /**
    * Make a DELETE request
    * @param {string} endpoint - API endpoint
@@ -108,11 +111,12 @@ const apiClient = {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`DELETE ${endpoint} failed:`, error);
@@ -123,46 +127,27 @@ const apiClient = {
 
 // Calendar-specific API methods
 export const calendarApi = {
-  /**
-   * Get attendance data for an employee
-   * @param {string} employeeId - Employee ID
-   * @param {string} startDate - Start date (YYYY-MM-DD)
-   * @param {string} endDate - End date (YYYY-MM-DD)
-   * @returns {Promise} - Response promise
-   */
+  
   getAttendance(employeeId, startDate, endDate) {
     return apiClient.get(`/calendar/attendance?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`);
   },
+
   
-  /**
-   * Clock in an employee
-   * @param {string} employeeId - Employee ID
-   * @returns {Promise} - Response promise
-   */
+  getAllAttendance(startDate, endDate) {
+    return apiClient.get(`/calendar/attendance/all?startDate=${startDate}&endDate=${endDate}`);
+  },
+
   clockIn(employeeId) {
     return apiClient.post('/calendar/attendance/clock-in', { employeeId });
   },
-  
-  /**
-   * Clock out an employee
-   * @param {string} employeeId - Employee ID
-   * @param {boolean} isAutoLogout - Whether this is an automatic logout
-   * @returns {Promise} - Response promise
-   */
+
   clockOut(employeeId, isAutoLogout = false) {
-    return apiClient.post('/calendar/attendance/clock-out', { 
+    return apiClient.post('/calendar/attendance/clock-out', {
       employeeId,
       isAutoLogout
     });
   },
-  
-  /**
-   * Request a day off
-   * @param {string} employeeId - Employee ID
-   * @param {string} date - Date (YYYY-MM-DD)
-   * @param {string} reason - Reason for day off
-   * @returns {Promise} - Response promise
-   */
+
   requestDayOff(employeeId, date, reason) {
     return apiClient.post('/calendar/attendance/day-off', {
       employeeId,
@@ -170,24 +155,28 @@ export const calendarApi = {
       reason
     });
   },
-  
-  /**
-   * Get holidays for a date range
-   * @param {string} startDate - Start date (YYYY-MM-DD)
-   * @param {string} endDate - End date (YYYY-MM-DD)
-   * @returns {Promise} - Response promise
-   */
+
+  processDayOffRequest(adminId, employeeId, date, approved) {
+    return apiClient.post('/calendar/attendance/day-off/approve', {
+      adminId,
+      employeeId,
+      date,
+      approved
+    });
+  },
+
+  getPendingRequests(adminId) {
+    return apiClient.get(`/attendance/pending-requests?adminId=${adminId}`);
+  },
+
+  checkAdminStatus(employeeId) {
+    return apiClient.get(`/employees/${employeeId}`);
+  },
+
   getHolidays(startDate, endDate) {
     return apiClient.get(`/calendar/holidays?startDate=${startDate}&endDate=${endDate}`);
   },
-  
-  /**
-   * Set a holiday
-   * @param {string} date - Date (YYYY-MM-DD)
-   * @param {string} description - Holiday description
-   * @param {boolean} isHoliday - Whether to set or remove the holiday
-   * @returns {Promise} - Response promise
-   */
+
   setHoliday(date, description, isHoliday = true) {
     return apiClient.post('/calendar/holidays', {
       date,

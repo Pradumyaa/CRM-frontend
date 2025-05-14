@@ -27,7 +27,7 @@ const LoginPage = () => {
 
     try {
       const response = await fetch(
-        "https://crm-backend-6gcl.onrender.com/api/auth/login",
+        "http://localhost:3000/api/auth/login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

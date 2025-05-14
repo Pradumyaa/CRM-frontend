@@ -1,3 +1,4 @@
+// Updated AddProjectListModal.jsx
 import { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -11,9 +12,10 @@ import {
   Clipboard,
   MessageCircle,
   Clock,
+  AlertCircle
 } from "lucide-react";
 import useSpacesStore from "@/store/useSpacesStore";
-import { colors } from "@/utils/theme";
+import projectListService from "@/api/projectListService";
 
 // Project list templates for quick start
 const projectTemplates = [
@@ -79,7 +81,8 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
   const { addProjectList } = useSpacesStore();
   const [projectListName, setProjectListName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("blank");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [step, setStep] = useState(1); // 1: template selection, 2: naming
   const modalRef = useRef(null);
   const inputRef = useRef(null);
@@ -88,7 +91,8 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
     if (isOpen) {
       setProjectListName("");
       setSelectedTemplate("blank");
-      setIsLoading(false);
+      setIsSubmitting(false);
+      setError("");
       setStep(1);
     }
   }, [isOpen]);
@@ -142,20 +146,42 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
     setStep(1);
   };
 
-  const handleAddProjectList = () => {
-    if (projectListName.trim() !== "") {
-      setIsLoading(true);
+  const handleAddProjectList = async () => {
+    if (projectListName.trim() === "") {
+      setError("Project list name is required");
+      return;
+    }
 
-      // Simulate async operation
-      setTimeout(() => {
-        // In a real app, we would use selectedTemplate to create different kinds of lists
-        addProjectList(spaceId, folderId, projectListName, selectedTemplate);
-        setProjectListName("");
-        setSelectedTemplate("blank");
-        setIsLoading(false);
-        setStep(1);
-        onClose();
-      }, 300);
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // Create the project list data
+      const projectListData = {
+        name: projectListName.trim(),
+        templateType: selectedTemplate
+      };
+
+      // Call the API to create the project list
+      const newProjectList = await projectListService.createProjectList(
+        spaceId, 
+        folderId, 
+        projectListData
+      );
+
+      // Update the store with the new project list
+      addProjectList(spaceId, folderId, projectListName, selectedTemplate, newProjectList.id);
+      
+      // Reset form and close modal
+      setProjectListName("");
+      setSelectedTemplate("blank");
+      setStep(1);
+      onClose();
+    } catch (err) {
+      console.error("Error creating project list:", err);
+      setError(err.response?.data?.message || "Failed to create project list. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -180,10 +206,18 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors"
+            disabled={isSubmitting}
           >
             <X size={18} />
           </button>
         </div>
+
+        {error && (
+          <div className="mx-6 mt-4 flex items-center p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+            <AlertCircle size={16} className="flex-shrink-0 mr-2" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {step === 1 && (
           <div className="px-6 py-4">
@@ -228,12 +262,14 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={goToNextStep}
                 className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                disabled={isSubmitting}
               >
                 Continue
               </button>
@@ -268,11 +304,16 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
                 ref={inputRef}
                 type="text"
                 value={projectListName}
-                onChange={(e) => setProjectListName(e.target.value)}
+                onChange={(e) => {
+                  setProjectListName(e.target.value);
+                  if (error && e.target.value.trim()) {
+                    setError("");
+                  }
+                }}
                 onKeyPress={handleKeyPress}
                 placeholder="Enter project list name"
-                className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                disabled={isLoading}
+                className={`border ${error ? "border-red-300 bg-red-50" : "border-gray-300"} p-2 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow`}
+                disabled={isSubmitting}
               />
             </div>
 
@@ -280,16 +321,16 @@ const AddProjectListModal = ({ spaceId, folderId, isOpen, onClose }) => {
               <button
                 onClick={goToPreviousStep}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none transition-colors"
-                disabled={isLoading}
+                disabled={isSubmitting}
               >
                 Back
               </button>
               <button
                 onClick={handleAddProjectList}
                 className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none transition-colors relative"
-                disabled={!projectListName.trim() || isLoading}
+                disabled={!projectListName.trim() || isSubmitting}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <span className="opacity-0">Create List</span>
                     <span className="absolute inset-0 flex items-center justify-center">

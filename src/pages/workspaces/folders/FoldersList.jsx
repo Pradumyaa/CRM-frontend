@@ -1,4 +1,5 @@
-import { useState } from "react";
+// Updated FoldersList.jsx
+import { useState, useEffect } from "react";
 import { Folder, PlusCircle } from "lucide-react";
 import FolderItem from "./FolderItem";
 import AddFolderModal from "./AddFolderModal";
@@ -6,16 +7,19 @@ import useSpacesStore from "@/store/useSpacesStore";
 
 const FoldersList = ({
   spaceId,
-  folders,
   expandedFolders,
   toggleFolderExpand,
   onSelectProjectList,
   searchTerm,
 }) => {
-  const { reorderFolders } = useSpacesStore();
+  const { spaces, reorderFolders, loading, error } = useSpacesStore();
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [draggedFolder, setDraggedFolder] = useState(null);
   const [dragOverFolder, setDragOverFolder] = useState(null);
+
+  // Find the current space and its folders
+  const currentSpace = spaces.find(space => space.id === spaceId);
+  const folders = currentSpace?.folders || [];
 
   // Handle drag and drop
   const handleDragStart = (e, folderId) => {
@@ -67,6 +71,29 @@ const FoldersList = ({
       </button>
     </div>
   );
+
+  // Show loading indicator or error message
+  if (loading && !folders.length) {
+    return (
+      <div className="py-4 text-center text-gray-500">
+        <p>Loading folders...</p>
+      </div>
+    );
+  }
+
+  if (error && !folders.length) {
+    return (
+      <div className="py-4 text-center text-red-500">
+        <p>Error loading folders: {error}</p>
+        <button 
+          className="mt-2 text-indigo-600 hover:underline text-sm"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="py-1">

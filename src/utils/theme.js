@@ -117,6 +117,15 @@ export const colors = {
         500: '#f97316',
         600: '#ea580c',
     },
+    pink: {
+        500: '#ec4899',
+    },
+    cyan: {
+        500: '#06b6d4',
+    },
+    purple: {
+        500: '#a855f7',
+    },
 };
 
 // Color options for pickers (folders, spaces, etc.)
@@ -153,27 +162,133 @@ export const spaceTemplates = [
         id: "blank",
         name: "Blank Space",
         description: "Start from scratch with an empty space",
-        icon: "layout",
-        iconColor: colors.secondary[600],
+        icon: "Layout",
+        iconColor: "text-indigo-500",
         isDefault: true
     },
     {
         id: "work",
         name: "Work Space",
-        description: "Pre-configured for work projects",
-        icon: "briefcase",
-        iconColor: colors.primary[500],
+        description: "Pre-configured for work projects with tasks, deadlines, and reports",
+        icon: "Briefcase",
+        iconColor: "text-blue-500",
         isDefault: false
     },
     {
         id: "personal",
         name: "Personal Space",
-        description: "Organize your personal tasks and projects",
-        icon: "clipboard",
-        iconColor: colors.success[500],
+        description: "Organize your personal tasks, goals, and notes",
+        icon: "Clipboard",
+        iconColor: "text-emerald-500",
+        isDefault: false
+    },
+    {
+        id: "marketing",
+        name: "Marketing Campaigns",
+        description: "Manage marketing campaigns, content calendar, and analytics",
+        icon: "BarChart",
+        iconColor: "text-purple-500",
+        isDefault: false
+    },
+    {
+        id: "engineering",
+        name: "Software Development",
+        description: "Organize sprints, track issues, and manage releases",
+        icon: "FileText",
+        iconColor: "text-red-500",
+        isDefault: false
+    },
+    {
+        id: "clientManagement",
+        name: "Client Management",
+        description: "Manage client projects, communications, and deliverables",
+        icon: "Users",
+        iconColor: "text-amber-500",
+        isDefault: false
+    },
+    {
+        id: "eventPlanning",
+        name: "Event Planning",
+        description: "Plan and coordinate events, schedules, and tasks",
+        icon: "Calendar",
+        iconColor: "text-pink-500",
+        isDefault: false
+    },
+    {
+        id: "productDevelopment",
+        name: "Product Development",
+        description: "Track product roadmap, features, and launch activities",
+        icon: "Kanban",
+        iconColor: "text-cyan-500",
         isDefault: false
     },
 ];
+
+// Get status color classes
+export const getStatusColor = (status) => {
+    switch (status) {
+        case "completed":
+        case "done":
+            return {
+                bg: "bg-green-100",
+                text: "text-green-800",
+                icon: "text-green-500"
+            };
+        case "in_progress":
+        case "inProgress":
+            return {
+                bg: "bg-blue-100",
+                text: "text-blue-800",
+                icon: "text-blue-500"
+            };
+        case "review":
+            return {
+                bg: "bg-purple-100",
+                text: "text-purple-800",
+                icon: "text-purple-500"
+            };
+        default: // to_do, todo
+            return {
+                bg: "bg-gray-100",
+                text: "text-gray-800",
+                icon: "text-gray-500"
+            };
+    }
+};
+
+// Get priority color classes
+export const getPriorityColor = (priority) => {
+    switch (priority) {
+        case "high":
+            return {
+                bg: "bg-red-100",
+                text: "text-red-800",
+                icon: "text-red-500",
+                fill: "bg-red-500"
+            };
+        case "medium":
+            return {
+                bg: "bg-yellow-100",
+                text: "text-yellow-800",
+                icon: "text-yellow-500",
+                fill: "bg-yellow-500"
+            };
+        case "low":
+            return {
+                bg: "bg-green-100",
+                text: "text-green-800",
+                icon: "text-green-500",
+                fill: "bg-green-500"
+            };
+        default:
+            return {
+                bg: "bg-gray-100",
+                text: "text-gray-800",
+                icon: "text-gray-500",
+                fill: "bg-blue-500"
+            };
+    }
+};
 
 // Animation durations
 export const animation = {
@@ -209,4 +324,6 @@ export default {
     animation,
     borderRadius,
     shadows,
+    getStatusColor,
+    getPriorityColor,
 };

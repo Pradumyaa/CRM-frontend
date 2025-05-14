@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import axios from "axios";
 
 // Initialize Socket.IO client with proper reconnection options
-const socket = io("https://crm-backend-6gcl.onrender.com", {
+const socket = io("http://localhost:3000", {
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   autoConnect: true
@@ -57,7 +57,7 @@ const useChatStore = create((set, get) => ({
   // Fetch employees from API
   fetchEmployees: async () => {
     try {
-      const response = await axios.get("https://crm-backend-6gcl.onrender.com/api/employees");
+      const response = await axios.get("http://localhost:3000/api/employees");
       console.log("Employees API Response:", response.data);
 
       let employeesArray;
@@ -92,7 +92,7 @@ const useChatStore = create((set, get) => ({
   // Fetch channels from API
   fetchChannels: async () => {
     try {
-      const response = await axios.get("https://crm-backend-6gcl.onrender.com/api/channels");
+      const response = await axios.get("http://localhost:3000/api/channels");
       console.log("Channels API Response:", response.data);
       
       const channelsArray = Array.isArray(response.data) ? 
@@ -125,7 +125,7 @@ const useChatStore = create((set, get) => ({
       set({ loading: true });
       console.log(`Fetching messages for chat: ${chatId}`);
       
-      const response = await axios.get(`https://crm-backend-6gcl.onrender.com/api/chats/${chatId}/messages`);
+      const response = await axios.get(`http://localhost:3000/api/chats/${chatId}/messages`);
       console.log(`Messages received for ${chatId}:`, response.data);
       
       // Normalize message format

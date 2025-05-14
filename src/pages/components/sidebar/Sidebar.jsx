@@ -32,9 +32,11 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
       if (employeeId) {
         try {
           const response = await fetch(
-            `https://crm-backend-6gcl.onrender.com/api/employees/isAdminOrNot/${employeeId}`
+            `http://localhost:3000/api/employees/isAdminOrNot/${employeeId}`
           );
-          if (!response.ok) throw new Error("Failed to fetch user data");
+          if (!response.ok) {
+            throw new Error("Failed to fetch user data");
+          }
           const data = await response.json();
           setUser({
             name: data.name || "Guest",
@@ -51,18 +53,18 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   const navigationItems = [
     { label: "Dashboard", icon: <MdDashboard size={18} />, key: "dashboard" },
     { label: "Profile", icon: <MdPerson size={18} />, key: "profile" },
-    {
-      label: "Product",
-      icon: <MdShoppingBag size={18} />,
-      hasDropdown: true,
-      key: "product",
-      subItems: [
-        { label: "All Products", key: "allProducts" },
-        { label: "Categories", key: "categories" },
-        { label: "Orders", key: "orders" },
-      ],
-    },
-    { label: "Income", icon: <MdAttachMoney size={18} />, key: "income" },
+    // {
+    //   label: "Product",
+    //   icon: <MdShoppingBag size={18} />,
+    //   hasDropdown: true,
+    //   key: "product",
+    //   subItems: [
+    //     { label: "All Products", key: "allProducts" },
+    //     { label: "Categories", key: "categories" },
+    //     { label: "Orders", key: "orders" },
+    //   ],
+    // },
+    // { label: "Income", icon: <MdAttachMoney size={18} />, key: "income" },
     ...(user.isAdmin
       ? [
           {
@@ -73,13 +75,14 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
             subItems: [
               { label: "Employee List", key: "employeeList" },
               { label: "Activity Tracker", key: "activityTracker" },
+              { label: "Documents", key: "documents" },
             ],
           },
         ]
       : []),
     { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
-    { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
-    { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
+    // { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
+    // { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
   ];
 
   const handleItemClick = (item) => {
@@ -87,13 +90,17 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
       setOpenDropdown(openDropdown === item.label ? "" : item.label);
     } else {
       setOpenDropdown("");
-      if (onItemSelect) onItemSelect(item.key);
+      if (onItemSelect) {
+        onItemSelect(item.key);
+      }
     }
   };
 
   const handleSubItemClick = (parentLabel, subItemKey) => {
     setOpenDropdown(parentLabel);
-    if (onItemSelect) onItemSelect(subItemKey);
+    if (onItemSelect) {
+      onItemSelect(subItemKey);
+    }
   };
 
   const handleMouseEnter = (item) => {
@@ -156,7 +163,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                   >
                     <div
                       className={`flex items-center gap-2 ${
-                        !isSidebarOpen ? "justify-center w-full" : ""
+                        isSidebarOpen ? "" : "justify-center w-full"
                       }`}
                     >
                       <div
@@ -218,7 +225,9 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                             const element = document.getElementById(item.key);
                             if (element) {
                               const rect = element.getBoundingClientRect();
-                              return `${rect.top + window.scrollY + rect.height / 2 - 10}px`; // Adjusted for better centering
+                              return `${
+                                rect.top + window.scrollY + rect.height / 2 - 10
+                              }px`; // Adjusted for better centering
                             }
                             return "0px";
                           })(),
@@ -231,34 +240,6 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                         <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
                       </div>
                     )}
-
-                  {/* Tooltip using portal to render outside the sidebar to prevent scrollbars */}
-                  {/* {!isSidebarOpen &&
-                    hoveredItem &&
-                    hoveredItem.key === item.key && (
-                      <div
-                        style={{
-                          position: "fixed",
-                          left: "60px", // Fixed position just to the right of sidebar
-                          top: ((e) => {
-                            const rect = document
-                              .querySelector(
-                                `button[aria-label="${item.label}"]`
-                              )
-                              ?.getBoundingClientRect();
-                            return rect
-                              ? rect.top + rect.height / 2 - 15 + "px"
-                              : "0px";
-                          })(),
-                          zIndex: 1000,
-                        }}
-                        className="bg-white shadow-md rounded-md py-2 px-3 min-w-[100px] text-[#5932EA] text-sm font-medium"
-                        id={`tooltip-${item.key}`}
-                      >
-                        {item.label}
-                        <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
-                      </div>
-                    )} */}
                 </div>
 
                 {/* Dropdown content with visual indicators */}

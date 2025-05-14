@@ -1,9 +1,6 @@
-// utils/calendarStyles.js
+// src/utils/calendarStyles.js
 
-// This file defines consistent styling for the calendar components
-// to ensure visual cohesion and appealing design
-
-// Text styles
+// Text styles for consistent typography
 export const textStyles = {
     title: "text-2xl font-bold text-gray-900",
     subtitle: "text-xl font-semibold text-gray-800",
@@ -44,6 +41,11 @@ export const statusColors = {
         text: "text-orange-600",
         lightBg: "bg-orange-100",
     },
+    active_overtime: {
+        bg: "bg-orange-300",
+        text: "text-orange-600",
+        lightBg: "bg-orange-50",
+    },
     late: {
         bg: "bg-red-500",
         text: "text-red-600",
@@ -59,6 +61,11 @@ export const statusColors = {
         text: "text-yellow-600",
         lightBg: "bg-yellow-100",
     },
+    dayoff_pending: {
+        bg: "bg-yellow-300",
+        text: "text-yellow-600",
+        lightBg: "bg-yellow-50",
+    },
     holiday: {
         bg: "bg-purple-500",
         text: "text-purple-600",
@@ -69,10 +76,20 @@ export const statusColors = {
         text: "text-gray-600",
         lightBg: "bg-gray-100",
     },
-    "early-arrival": {
+    early_arrival: {
         bg: "bg-blue-400",
         text: "text-blue-600",
         lightBg: "bg-blue-100",
+    },
+    pending: {
+        bg: "bg-gray-300",
+        text: "text-gray-500",
+        lightBg: "bg-gray-50",
+    },
+    error: {
+        bg: "bg-red-300",
+        text: "text-red-500",
+        lightBg: "bg-red-50",
     },
 };
 
@@ -102,11 +119,68 @@ export const formatDate = (date) => {
         date = new Date(date);
     }
 
-    return date.toLocaleDateString('en-IN', {
+    return date.toLocaleDateString('en-US', {
         day: 'numeric',
         month: 'short',
         year: 'numeric'
     });
+};
+
+// Format date to YYYY-MM-DD string
+export const formatDateToString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// Format time for timeline display HH:MM:SS
+export const formatTimeWithSeconds = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    return `${hours.toString().padStart(2, '0')}:${minutes
+        .toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Format hours and minutes only
+export const formatHoursMinutes = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours.toString().padStart(2, '0')}h:${minutes
+        .toString().padStart(2, '0')}m`;
+};
+
+// Format date for month display
+export const formatMonthYear = (date) => {
+    return date.toLocaleString("default", { month: "long", year: "numeric" });
+};
+
+// Format date for day display
+export const formatDayLabel = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (date.toDateString() === today.toDateString()) {
+        return "Today";
+    }
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    if (date.toDateString() === tomorrow.toDateString()) {
+        return "Tomorrow";
+    }
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+        return "Yesterday";
+    }
+
+    return `${date.toLocaleString("default", {
+        weekday: "long",
+    })}, ${date.getDate()}`;
 };
 
 // Function to get tooltip content based on status

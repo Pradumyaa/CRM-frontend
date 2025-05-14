@@ -180,7 +180,7 @@ const DashboardPage = () => {
 
         try {
           const response = await fetch(
-            `https://crm-backend-6gcl.onrender.com/api/employees/${employeeId}`
+            `http://localhost:3000/api/employees/${employeeId}`
           );
           if (!response.ok) throw new Error("Failed to fetch employee data");
 

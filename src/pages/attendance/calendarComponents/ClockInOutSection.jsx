@@ -1,22 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Timer,
+  Maximize,
+  Minimize,
 } from "lucide-react";
+import { formatTimeWithSeconds } from "../../../utils/calendarStyles";
 
 const ClockInOutSection = ({
   isClockIn,
   timer,
-  formatTime,
   isTodayCompleted,
   handleClockIn,
   handleClockOut,
   clockInLoading,
   clockOutLoading,
+  className = "",
 }) => {
+  const [expanded, setExpanded] = useState(true);
+  const [timerAnimation, setTimerAnimation] = useState(false);
+
+  // Animate timer every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isClockIn) {
+        setTimerAnimation(true);
+        setTimeout(() => setTimerAnimation(false), 1000);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [isClockIn]);
+
   // Calculate if it's early, normal, or late time
   const getCurrentTimeStatus = () => {
     const now = new Date();
@@ -55,143 +73,188 @@ const ClockInOutSection = ({
     };
   };
 
-  // Format seconds to HH:MM:SS
-  const formatTimeWithSeconds = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const timeStatus = !isClockIn ? getCurrentTimeStatus() : null;
 
+  // Calculate elapsed hours and minutes for displaying work progress
+  const elapsedTime = {
+    hours: Math.floor(timer / 3600),
+    minutes: Math.floor((timer % 3600) / 60),
+  };
+
+  // Calculate progress percentage (8-hour workday)
+  const progressPercentage = Math.min(100, (timer / (8 * 3600)) * 100);
+
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4">
+    <div
+      className={`bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mb-6 transition-all duration-300 ${className}`}
+    >
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 flex justify-between items-center">
         <h3 className="text-xl font-semibold flex items-center">
           <Clock className="mr-2" size={20} /> Today's Attendance
         </h3>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          {expanded ? <Minimize size={18} /> : <Maximize size={18} />}
+        </button>
       </div>
 
-      <div className="p-6">
-        {isTodayCompleted() ? (
-          <div className="text-center p-4">
-            <div className="inline-flex p-4 rounded-full bg-green-100 mb-4">
-              <CheckCircle size={48} className="text-green-600" />
+      {expanded && (
+        <div className="p-6">
+          {isTodayCompleted() ? (
+            <div className="text-center p-4 animate-fade-in">
+              <div className="inline-flex p-4 rounded-full bg-green-100 mb-4 shadow-inner">
+                <CheckCircle size={48} className="text-green-600" />
+              </div>
+              <div className="text-xl font-medium text-green-600 mb-2">
+                Workday Completed
+              </div>
+              <div className="text-sm text-gray-600 max-w-md mx-auto">
+                You've successfully completed your work day. Your attendance has
+                been recorded.
+              </div>
             </div>
-            <div className="text-xl font-medium text-green-600 mb-2">
-              Workday Completed
-            </div>
-            <div className="text-sm text-gray-600 max-w-md mx-auto">
-              You've successfully completed your work day. Your attendance has
-              been recorded.
-            </div>
-          </div>
-        ) : (
-          <>
-            {isClockIn ? (
-              <div className="mb-6">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-blue-50 rounded-lg p-6 inline-block border border-blue-100 shadow-inner">
-                    <div className="flex items-center mb-2">
-                      <Timer size={24} className="text-blue-600 mr-2" />
-                      <div className="text-blue-600 font-medium">
-                        Time Elapsed
+          ) : (
+            <>
+              {isClockIn ? (
+                <div className="mb-6">
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 inline-block border border-blue-100 shadow-md w-full max-w-md">
+                      <div className="flex items-center mb-2">
+                        <Timer size={24} className="text-blue-600 mr-2" />
+                        <div className="text-blue-600 font-medium">
+                          Time Elapsed
+                        </div>
+                      </div>
+                      <div
+                        className={`text-4xl font-bold font-mono text-blue-700 text-center mb-3 ${
+                          timerAnimation ? "animate-pulse" : ""
+                        }`}
+                      >
+                        {formatTimeWithSeconds(timer)}
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Start</span>
+                        <span>{progressPercentage.toFixed(0)}% complete</span>
+                        <span>8 hours</span>
                       </div>
                     </div>
-                    <div className="text-4xl font-bold font-mono text-blue-700 text-center">
-                      {formatTimeWithSeconds(timer)}
+                  </div>
+
+                  <div className="text-center text-gray-600 text-sm mb-6">
+                    <div className="bg-gray-50 p-3 rounded-md border border-gray-100 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-medium">Clock-in time:</span>{" "}
+                          <span className="text-blue-600">
+                            {new Date(
+                              Date.now() - timer * 1000
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="font-medium">Working:</span>{" "}
+                          <span className="text-indigo-600">
+                            {elapsedTime.hours}h {elapsedTime.minutes}m
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="text-center text-gray-600 text-sm mb-6 bg-gray-50 p-3 rounded-md border border-gray-100">
-                  <span className="font-medium">Clock-in time:</span>{" "}
-                  <span className="text-blue-600">
-                    {new Date(Date.now() - timer * 1000).toLocaleTimeString(
-                      [],
-                      { hour: "2-digit", minute: "2-digit" }
-                    )}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6">
-                {timeStatus && (
-                  <div
-                    className={`flex items-start p-4 rounded-lg border mb-6 ${timeStatus.className}`}
-                  >
-                    <div className="mr-3 mt-0.5 flex-shrink-0">
-                      {timeStatus.icon}
+              ) : (
+                <div className="mb-6">
+                  {timeStatus && (
+                    <div
+                      className={`flex items-start p-4 rounded-lg border mb-6 transition-all ${timeStatus.className}`}
+                    >
+                      <div className="mr-3 mt-0.5 flex-shrink-0">
+                        {timeStatus.icon}
+                      </div>
+                      <div>
+                        <p>{timeStatus.message}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p>{timeStatus.message}</p>
-                    </div>
+                  )}
+                  <div className="text-center text-gray-600 py-4 animate-fade-in">
+                    <Clock
+                      size={64}
+                      className="mx-auto mb-3 text-blue-400 animate-pulse"
+                    />
+                    <p className="text-lg font-medium">
+                      Ready to start your workday?
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Click the button below to clock in
+                    </p>
                   </div>
-                )}
-                <div className="text-center text-gray-600 py-2">
-                  <Clock size={48} className="mx-auto mb-3 text-gray-400" />
-                  <p className="text-lg font-medium">
-                    Ready to start your workday?
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Click the button below to clock in
-                  </p>
                 </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={handleClockIn}
+                  disabled={isClockIn || clockInLoading}
+                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-all duration-300 ${
+                    isClockIn || clockInLoading
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                  }`}
+                >
+                  {clockInLoading ? (
+                    <>
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={18} />
+                      <span>Clock In</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleClockOut(false)}
+                  disabled={!isClockIn || clockOutLoading}
+                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-all duration-300 ${
+                    !isClockIn || clockOutLoading
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                  }`}
+                >
+                  {clockOutLoading ? (
+                    <>
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={18} />
+                      <span>Clock Out</span>
+                    </>
+                  )}
+                </button>
               </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={handleClockIn}
-                disabled={isClockIn || clockInLoading}
-                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-all ${
-                  isClockIn || clockInLoading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow hover:shadow-md"
-                }`}
-              >
-                {clockInLoading ? (
-                  <>
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Clock size={18} />
-                    <span>Clock In</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => handleClockOut(false)}
-                disabled={!isClockIn || clockOutLoading}
-                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-all ${
-                  !isClockIn || clockOutLoading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow hover:shadow-md"
-                }`}
-              >
-                {clockOutLoading ? (
-                  <>
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={18} />
-                    <span>Clock Out</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

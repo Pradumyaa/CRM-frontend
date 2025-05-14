@@ -1,8 +1,9 @@
+// Updated AddSpaceModal.jsx
 import { useState, useEffect, useRef } from "react";
 import {
   X,
-  Briefcase,
   Layout,
+  Briefcase,
   Clipboard,
   CheckCircle,
   FileText,
@@ -12,88 +13,31 @@ import {
   Kanban,
   Globe,
   Book,
+  AlertCircle
 } from "lucide-react";
 import useSpacesStore from "@/store/useSpacesStore";
-import { colorOptions } from "@/utils/theme"
-
-// Professional space templates
-const spaceTemplates = [
-  {
-    id: "blank",
-    name: "Blank Space",
-    description: "Start from scratch with an empty space",
-    icon: <Layout className="text-indigo-500" size={20} />,
-    isDefault: true,
-  },
-  {
-    id: "work",
-    name: "Work Space",
-    description:
-      "Pre-configured for work projects with tasks, deadlines, and reports",
-    icon: <Briefcase className="text-blue-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "personal",
-    name: "Personal Space",
-    description: "Organize your personal tasks, goals, and notes",
-    icon: <Clipboard className="text-emerald-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "marketing",
-    name: "Marketing Campaigns",
-    description: "Manage marketing campaigns, content calendar, and analytics",
-    icon: <BarChart className="text-purple-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "engineering",
-    name: "Software Development",
-    description: "Organize sprints, track issues, and manage releases",
-    icon: <FileText className="text-red-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "clientManagement",
-    name: "Client Management",
-    description: "Manage client projects, communications, and deliverables",
-    icon: <Users className="text-amber-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "eventPlanning",
-    name: "Event Planning",
-    description: "Plan and coordinate events, schedules, and tasks",
-    icon: <Calendar className="text-pink-500" size={20} />,
-    isDefault: false,
-  },
-  {
-    id: "productDevelopment",
-    name: "Product Development",
-    description: "Track product roadmap, features, and launch activities",
-    icon: <Kanban className="text-cyan-500" size={20} />,
-    isDefault: false,
-  },
-];
+import { colorOptions, spaceTemplates } from "@/utils/theme";
+import spaceService from "@/api/spaceService";
 
 const AddSpaceModal = ({ isOpen, onClose }) => {
   const { addSpace } = useSpacesStore();
   const [spaceName, setSpaceName] = useState("");
   const [spaceColor, setSpaceColor] = useState(colorOptions[0].value);
   const [selectedTemplate, setSelectedTemplate] = useState("blank");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [step, setStep] = useState(1); // 1: template, 2: details
   const modalRef = useRef(null);
   const inputRef = useRef(null);
-
+ 
   useEffect(() => {
     if (isOpen) {
       setSpaceName("");
       setSpaceColor(colorOptions[0].value);
       setSelectedTemplate("blank");
       setStep(1);
-      setIsLoading(false);
+      setIsSubmitting(false);
+      setErrorMessage("");
     }
   }, [isOpen]);
 
@@ -140,21 +84,41 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
     setStep(1);
   };
 
-  const handleAddSpace = () => {
-    if (spaceName.trim() !== "") {
-      setIsLoading(true);
+  const handleAddSpace = async () => {
+    if (spaceName.trim() === "") {
+      setErrorMessage("Space name is required");
+      return;
+    }
 
-      // Simulate async operation
-      setTimeout(() => {
-        // In a real implementation, we would pass the template type to use it later
-        addSpace(spaceName, spaceColor, selectedTemplate);
-        setSpaceName("");
-        setSpaceColor(colorOptions[0].value);
-        setSelectedTemplate("blank");
-        setStep(1);
-        setIsLoading(false);
-        onClose();
-      }, 500);
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      // Create space data object
+      const spaceData = {
+        name: spaceName.trim(),
+        color: spaceColor,
+        templateType: selectedTemplate,
+        employeeId: localStorage.getItem("employeeId"),
+      }
+
+      // Call the API
+      const newSpace = await spaceService.createSpace(spaceData);
+
+      // Update the local store
+      addSpace(spaceName, spaceColor, selectedTemplate, newSpace.id);
+      
+      // Reset and close modal
+      setSpaceName("");
+      setSpaceColor(colorOptions[0].value);
+      setSelectedTemplate("blank");
+      setStep(1);
+      setIsSubmitting(false);
+      onClose();
+    } catch (err) {
+      console.error("Error creating space:", err);
+      setErrorMessage(err.response?.data?.message || "Failed to create space. Please try again.");
+      setIsSubmitting(false);
     }
   };
 
@@ -162,6 +126,21 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
     if (e.key === "Enter" && step === 2) {
       handleAddSpace();
     }
+  };
+
+  const getTemplateIcon = (iconName) => {
+    const icons = {
+      Layout: <Layout size={20} className="text-indigo-500" />,
+      Briefcase: <Briefcase size={20} className="text-blue-500" />,
+      Clipboard: <Clipboard size={20} className="text-emerald-500" />,
+      BarChart: <BarChart size={20} className="text-purple-500" />,
+      FileText: <FileText size={20} className="text-red-500" />,
+      Users: <Users size={20} className="text-amber-500" />,
+      Calendar: <Calendar size={20} className="text-pink-500" />,
+      Kanban: <Kanban size={20} className="text-cyan-500" />,
+    };
+    
+    return icons[iconName] || <Layout size={20} className="text-indigo-500" />;
   };
 
   if (!isOpen) return null;
@@ -179,10 +158,18 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 focus:outline-none"
+            disabled={isSubmitting}
           >
             <X size={18} />
           </button>
         </div>
+
+        {errorMessage && (
+          <div className="mx-6 mt-4 flex items-center p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+            <AlertCircle size={16} className="flex-shrink-0 mr-2" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         {step === 1 && (
           <div className="px-6 py-4">
@@ -201,7 +188,9 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
                   }`}
                   onClick={() => setSelectedTemplate(template.id)}
                 >
-                  <div className="flex-shrink-0 mr-3">{template.icon}</div>
+                  <div className="flex-shrink-0 mr-3">
+                    {getTemplateIcon(template.icon)}
+                  </div>
                   <div className="flex-grow">
                     <h3 className="font-medium text-gray-900">
                       {template.name}
@@ -225,12 +214,14 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={goToNextStep}
                 className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                disabled={isSubmitting}
               >
                 Continue
               </button>
@@ -243,17 +234,14 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
             <div className="mb-6">
               <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md p-3 mb-4">
                 <div className="mr-3">
-                  {spaceTemplates.find((t) => t.id === selectedTemplate)
-                    ?.icon || <Layout className="text-indigo-500" size={20} />}
+                  {getTemplateIcon(spaceTemplates.find(t => t.id === selectedTemplate)?.icon || 'Layout')}
                 </div>
                 <div>
                   <h3 className="font-medium text-indigo-800">
-                    {spaceTemplates.find((t) => t.id === selectedTemplate)
-                      ?.name || "Blank Space"}
+                    {spaceTemplates.find(t => t.id === selectedTemplate)?.name || "Blank Space"}
                   </h3>
                   <p className="text-xs text-indigo-600">
-                    {spaceTemplates.find((t) => t.id === selectedTemplate)
-                      ?.description || "Start from scratch with an empty space"}
+                    {spaceTemplates.find(t => t.id === selectedTemplate)?.description || "Start from scratch with an empty space"}
                   </p>
                 </div>
               </div>
@@ -265,10 +253,16 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
                 ref={inputRef}
                 type="text"
                 value={spaceName}
-                onChange={(e) => setSpaceName(e.target.value)}
+                onChange={(e) => {
+                  setSpaceName(e.target.value);
+                  if (errorMessage && e.target.value.trim()) {
+                    setErrorMessage("");
+                  }
+                }}
                 onKeyPress={handleKeyPress}
                 placeholder="Enter space name"
-                className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className={`border ${errorMessage ? "border-red-300 bg-red-50" : "border-gray-300"} p-2 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
+                disabled={isSubmitting}
               />
             </div>
 
@@ -276,7 +270,7 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Space Color
               </label>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-7 gap-3">
                 {colorOptions.map((color) => (
                   <button
                     key={color.value}
@@ -289,6 +283,7 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
                     style={{ backgroundColor: color.value }}
                     onClick={() => setSpaceColor(color.value)}
                     title={color.name}
+                    disabled={isSubmitting}
                   ></button>
                 ))}
               </div>
@@ -302,15 +297,16 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
               <button
                 onClick={goToPreviousStep}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={isSubmitting}
               >
                 Back
               </button>
               <button
                 onClick={handleAddSpace}
                 className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
-                disabled={!spaceName.trim() || isLoading}
+                disabled={!spaceName.trim() || isSubmitting}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <span className="opacity-0">Create Space</span>
                     <span className="absolute inset-0 flex items-center justify-center">
@@ -346,6 +342,7 @@ const AddSpaceModal = ({ isOpen, onClose }) => {
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>

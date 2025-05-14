@@ -1,72 +1,67 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { Plus, BriefcaseBusiness } from "lucide-react";
 import axios from "axios";
-import SearchBar from "../../components/SearchBar.jsx";
+import SearchBar from "@/pages/components/SearchBar.jsx";
 import EmployeeTable from "./employee/EmployeeTable.jsx";
-import Pagination from "../../components/Pagination.jsx";
 import AddEmployeeModal from "./employee/AddEmployeeModal.jsx";
+import ViewEmployeeModal from "./employee/ViewEmployeeModal.jsx";
 
 const EmployeeListPage = () => {
-  const itemsPerPage = 8;
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // ✅ Track editing mode
-  const [selectedEmployee, setSelectedEmployee] = useState(null); // ✅ Store selected employee
-  const [sortOrder, setSortOrder] = useState("newest"); // Default sort order
-
-  const handleSortChange = (event) => {
-    const order = event.target.value;
-    setSortOrder(order);
-
-    const sortedEmployees = [...filteredEmployees].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0); // Default to earliest date
-      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0); // Default to earliest date
-
-      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
-    });
-
-    setFilteredEmployees(sortedEmployees);
-  };
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [username, setUsername] = useState("Jane Doe"); // Set default or get from auth
 
   useEffect(() => {
     const fetchEmployees = async () => {
+      setIsLoading(true);
       try {
-        const response = await axios.get("https://crm-backend-6gcl.onrender.com/api/employees");
+        const response = await axios.get("http://localhost:3000/api/employees");
         setEmployees(response.data.employees || []);
         setFilteredEmployees(response.data.employees || []);
-        setTotalPages(Math.ceil(response.data.employees.length / itemsPerPage));
       } catch (error) {
         console.error("Error fetching employees:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchEmployees();
   }, []);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
   const handleEdit = (employee) => {
-    setSelectedEmployee(employee); // ✅ Set employee data
-    setIsEditing(true); // ✅ Set edit mode
-    setIsModalOpen(true); // ✅ Open modal
+    setSelectedEmployee(employee);
+    setIsEditing(true);
+    setIsAddModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleView = (employee) => {
+    setSelectedEmployee(employee);
+    setIsViewModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
     setIsEditing(false);
-    setSelectedEmployee(null); // ✅ Reset employee data when closing modal
+    setSelectedEmployee(null);
+  };
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setSelectedEmployee(null);
   };
 
   const handleDelete = async (employeeId) => {
-    if (!window.confirm("Are you sure you want to delete this employee?"))
+    if (!window.confirm("Are you sure you want to delete this employee?")) {
       return;
+    }
 
     try {
-      await axios.delete(`https://crm-backend-6gcl.onrender.com/api/employees/${employeeId}`);
+      await axios.delete(`http://localhost:3000/api/employees/${employeeId}`);
       setEmployees((prev) => prev.filter((emp) => emp._id !== employeeId));
       setFilteredEmployees((prev) =>
         prev.filter((emp) => emp._id !== employeeId)
@@ -77,76 +72,117 @@ const EmployeeListPage = () => {
     }
   };
 
-  const currentEmployees = filteredEmployees.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Get current time greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
+
+  // Get today's date in a nice format
+  const getTodayDate = () => {
+    return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-semibold mb-4">Hello Sriram 👋</h1>
+    <div className="bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-1">
+                {getGreeting()}, {username} 👋
+              </h1>
+              <p className="opacity-80 text-lg">{getTodayDate()}</p>
+            </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold">All Employees</h2>
-        <p className="text-green-500 font-medium cursor-pointer">
-          Active Members
-        </p>
-
-        <div className="flex justify-between items-center mt-4">
-          <SearchBar
-            setFilteredEmployees={setFilteredEmployees}
-            setSearchQuery={setSearchQuery}
-            employees={employees}
-          />
-          <div className="flex items-center gap-4">
-            <select
-              className="border p-2 rounded-md text-gray-600"
-              value={sortOrder}
-              onChange={handleSortChange}
-            >
-              <option value="newest">Sort by: Newest</option>
-              <option value="oldest">Sort by: Oldest</option>
-            </select>
-            <button
-              onClick={() => {
-                setIsEditing(false); // ✅ Ensure it's not editing
-                setSelectedEmployee(null);
-                setIsModalOpen(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-            >
-              +
-            </button>
+            <div className="mt-4 md:mt-0 flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setSelectedEmployee(null);
+                  setIsAddModalOpen(true);
+                }}
+                className="bg-white text-indigo-700 px-4 py-2 rounded-lg flex items-center transition-all hover:bg-opacity-90 shadow-lg hover:shadow-xl"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add Employee
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 bg-white p-6 rounded-lg shadow-md">
-        <EmployeeTable
-          employees={currentEmployees}
-          filteredEmployees={filteredEmployees}
-          searchQuery={searchQuery}
-          onEdit={handleEdit}
-          onDelete={handleDelete} // ✅ Now delete button works
-        />
+      {/* Employee List Section */}
+      <div className="container mx-auto py-8">
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+          <div className="py-6">
+            <div className="flex flex-col lg:flex-row justify-between items-center">
+              <div className="mb-4 lg:mb-0">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <BriefcaseBusiness className="mr-2 h-5 w-5 text-indigo-600" />
+                  Employee Management
+                </h2>
+                <p className="text-gray-500 text-sm">
+                  Manage all your employees in one place
+                </p>
+              </div>
+
+              <div className="w-full lg:w-1/2 xl:w-2/5">
+                <div className="relative">
+                  <SearchBar
+                    setFilteredEmployees={setFilteredEmployees}
+                    setSearchQuery={setSearchQuery}
+                    employees={employees}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Loading State */}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <p className="mt-4 text-gray-500">Loading employees...</p>
+              </div>
+            </div>
+          ) : (
+            <EmployeeTable
+              employees={filteredEmployees}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onView={handleView}
+            />
+          )}
+        </div>
       </div>
 
-      <div className="mt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
-
-      {isModalOpen && (
+      {/* Modals */}
+      {isAddModalOpen && (
         <AddEmployeeModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
+          isOpen={isAddModalOpen}
+          onClose={handleCloseAddModal}
           employeeData={selectedEmployee || {}}
           setEmployeeData={setSelectedEmployee}
-          onSave={() => window.location.reload()} // ✅ Refresh after save
-          isEditing={isEditing} // ✅ Pass editing state
+          onSave={() => window.location.reload()}
+          isEditing={isEditing}
+        />
+      )}
+
+      {isViewModalOpen && (
+        <ViewEmployeeModal
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+          employee={selectedEmployee}
         />
       )}
     </div>

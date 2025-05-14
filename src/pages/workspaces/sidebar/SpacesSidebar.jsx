@@ -1,3 +1,4 @@
+// Updated SpacesSidebar.jsx
 import { useState, useEffect, useRef } from "react";
 import {
   ChevronLeft,
@@ -17,17 +18,21 @@ import {
   User,
   ChevronDown,
   ChevronUp,
+  LogOut
 } from "lucide-react";
 import SpacesList from "../spaces/SpacesList";
 import useSpacesStore from "@/store/useSpacesStore";
 import AddSpaceModal from "../spaces/AddSpaceModal";
+import { clearAuth } from "@/utils/auth";
+import { useNavigate } from "react-router-dom";
 
 const SpacesSidebar = ({
   onSelectProjectList,
   isCollapsed = false,
   toggleCollapse,
 }) => {
-  const { spaces, team } = useSpacesStore();
+  const navigate = useNavigate();
+  const { spaces, loading, error, team } = useSpacesStore();
   const [expandedSpaces, setExpandedSpaces] = useState({});
   const [expandedFolders, setExpandedFolders] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,7 +45,7 @@ const SpacesSidebar = ({
 
   // Expand important spaces by default
   useEffect(() => {
-    if (spaces.length > 0) {
+    if (spaces && spaces.length > 0) {
       const initialExpanded = {};
       spaces.forEach((space, index) => {
         // Expand the first couple of spaces by default
@@ -50,7 +55,7 @@ const SpacesSidebar = ({
       });
       setExpandedSpaces(initialExpanded);
     }
-  }, []);
+  }, [spaces]);
 
   const toggleSpaceExpand = (spaceId) => {
     setExpandedSpaces({
@@ -65,6 +70,12 @@ const SpacesSidebar = ({
       [folderId]: !expandedFolders[folderId],
     });
   };
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate('/login'); // ✅ react-router-dom version
+  };
+  
 
   // Handle search with keyboard shortcut
   useEffect(() => {
@@ -314,9 +325,27 @@ const SpacesSidebar = ({
             </div>
           )}
 
-          {!isCollapsed && showSpacesSection && (
+          {loading && !isCollapsed && (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+
+          {error && !isCollapsed && (
+            <div className="px-4 py-3 text-red-500 text-sm">
+              <p>Error loading spaces</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-indigo-600 hover:underline mt-1"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isCollapsed && showSpacesSection && !loading && (
             <SpacesList
-              spaces={spaces}
+              spaces={spaces || []}
               expandedSpaces={expandedSpaces}
               expandedFolders={expandedFolders}
               toggleSpaceExpand={toggleSpaceExpand}
@@ -327,13 +356,13 @@ const SpacesSidebar = ({
             />
           )}
 
-          {isCollapsed && (
+          {isCollapsed && !loading && (
             <div className="flex flex-col items-center space-y-2 py-2">
-              {spaces.slice(0, 3).map((space) => (
+              {(spaces || []).slice(0, 3).map((space) => (
                 <div
                   key={space.id}
                   className="w-8 h-8 rounded-md flex items-center justify-center text-white font-medium text-xs cursor-pointer"
-                  style={{ backgroundColor: space.color }}
+                  style={{ backgroundColor: space.color || "#4f46e5" }}
                   title={space.name}
                   onClick={() => {
                     if (
@@ -347,13 +376,13 @@ const SpacesSidebar = ({
                   {space.name.substring(0, 2).toUpperCase()}
                 </div>
               ))}
-              {spaces.length > 3 && (
+              {(spaces || []).length > 3 && (
                 <div
                   className="w-8 h-8 rounded-md flex items-center justify-center bg-gray-200 text-gray-600 text-xs cursor-pointer"
                   title="More spaces"
                   onClick={toggleCollapse}
                 >
-                  +{spaces.length - 3}
+                  +{(spaces || []).length - 3}
                 </div>
               )}
             </div>
@@ -379,7 +408,7 @@ const SpacesSidebar = ({
 
             {showTeamSection && (
               <div className="pl-3 space-y-1">
-                {team.map((member) => (
+                {(team || []).map((member) => (
                   <div
                     key={member.id}
                     className="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100"
@@ -428,17 +457,33 @@ const SpacesSidebar = ({
               <LifeBuoy size={16} className="mr-2" />
               <span>Help & Support</span>
             </a>
-            <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-md">
-              <Settings size={16} />
-            </button>
+            <div className="flex">
+              <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-md">
+                <Settings size={16} />
+              </button>
+              <button 
+                className="p-2 text-gray-600 hover:bg-gray-200 rounded-md ml-1"
+                onClick={handleLogout}
+                title="Log out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {isCollapsed && (
-        <div className="py-3 border-t border-gray-200 flex justify-center">
-          <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full">
+        <div className="py-3 border-t border-gray-200 flex flex-col items-center">
+          <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full mb-2">
             <Settings size={16} />
+          </button>
+          <button 
+            className="p-2 text-gray-600 hover:bg-gray-200 rounded-full"
+            onClick={handleLogout}
+            title="Log out"
+          >
+            <LogOut size={16} />
           </button>
         </div>
       )}

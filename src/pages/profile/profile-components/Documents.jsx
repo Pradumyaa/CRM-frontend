@@ -1,0 +1,624 @@
+import { useState, useEffect } from "react";
+import {
+  FileText,
+  Download,
+  Upload,
+  X,
+  AlertCircle,
+  Info,
+  CheckCircle,
+  Eye,
+  MoreHorizontal,
+} from "lucide-react";
+
+const Documents = ({ employeeId }) => {
+  // Initialize documents from local storage or use defaults
+  const [documents, setDocuments] = useState([]);
+  const [showUpload, setShowUpload] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadError, setUploadError] = useState("");
+  const [showTooltip, setShowTooltip] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  // Document types definition - must match the admin's DocumentsPage
+  const documentTypes = [
+    {
+      id: "contract",
+      label: "Employment Contract",
+      required: true,
+      color: "blue",
+      description: "Official employment agreement between company and employee",
+    },
+    {
+      id: "payroll",
+      label: "Payroll Details",
+      required: true,
+      color: "orange",
+      description: "Salary structure, tax information and payment details",
+    },
+    {
+      id: "performance",
+      label: "Performance Review",
+      required: true,
+      color: "purple",
+      description: "Regular employee performance evaluation reports",
+    },
+    {
+      id: "resume",
+      label: "Resume",
+      required: false,
+      color: "green",
+      description: "Employee's curriculum vitae and professional background",
+    },
+  ];
+
+  // Function to get document storage key - matching the admin side
+  const getDocumentKey = (docType) => `document_${docType}_${employeeId}`;
+
+  // Load documents from localStorage
+  const loadDocuments = () => {
+    // Transform documents from localStorage to our format
+    const userDocs = documentTypes.map((docType) => {
+      const storageKey = getDocumentKey(docType.id);
+      const storedDoc = localStorage.getItem(storageKey);
+
+      let docInfo = {
+        id: docType.id,
+        type: docType.id,
+        name: docType.label,
+        size: "",
+        date: "",
+        file: null,
+        isAttached: false,
+        userUploadable: docType.id === "resume", // Only resume can be uploaded by user
+        fileType: "",
+        color: docType.color,
+        description: docType.description,
+      };
+
+      if (storedDoc) {
+        try {
+          const parsedDoc = JSON.parse(storedDoc);
+          docInfo = {
+            ...docInfo,
+            name: parsedDoc.name || docType.label,
+            size: `${(parsedDoc.size / (1024 * 1024)).toFixed(2)} MB`,
+            date: parsedDoc.date,
+            file: parsedDoc.dataUrl,
+            isAttached: true,
+            fileType: parsedDoc.type.includes("pdf") ? "PDF" : "DOCX",
+          };
+        } catch (error) {
+          console.error(
+            `Error parsing document data for ${docType.id}:`,
+            error
+          );
+        }
+      }
+
+      return docInfo;
+    });
+
+    setDocuments(userDocs);
+  };
+
+  // Load documents on component mount and whenever localStorage changes
+  useEffect(() => {
+    loadDocuments();
+
+    // Add storage event listener to detect changes made by admin
+    const handleStorageChange = (e) => {
+      // Check if the changed key is related to our documents
+      if (
+        e.key &&
+        e.key.startsWith("document_") &&
+        e.key.endsWith(employeeId)
+      ) {
+        loadDocuments();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [employeeId]);
+
+  // Add a polling mechanism as a fallback for same-tab updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDocuments();
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [employeeId]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setUploadError("File size exceeds 10MB limit");
+        setSelectedFile(null);
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError("Invalid file type. Please upload a PDF or DOCX file");
+        setSelectedFile(null);
+        return;
+      }
+
+      // Create preview for PDF files
+      if (file.type === "application/pdf") {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPreviewUrl(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setPreviewUrl("");
+      }
+
+      setSelectedFile(file);
+      setUploadError("");
+    }
+  };
+
+  const openUploadModal = (docType = "resume") => {
+    setSelectedFile(null);
+    setUploadError("");
+    setUploadSuccess(false);
+    setShowUpload(true);
+    setActiveDropdown(null);
+  };
+
+  const closeUploadModal = () => {
+    setShowUpload(false);
+    setSelectedFile(null);
+    setUploadError("");
+    setUploadSuccess(false);
+  };
+
+  const handlePreview = (url) => {
+    if (url) {
+      window.open(url);
+    }
+  };
+
+  const updateDocument = (docType = "resume") => {
+    if (!selectedFile) {
+      setUploadError("Please select a file to upload");
+      return;
+    }
+
+    setIsUploading(true);
+
+    // Read file as Data URL to store in localStorage
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        // Store file metadata in same format as admin's DocumentsPage
+        const fileData = {
+          name: selectedFile.name,
+          type: selectedFile.type,
+          size: selectedFile.size,
+          date: new Date().toISOString(),
+          dataUrl: event.target.result,
+        };
+
+        // Save to localStorage using the same key format as admin page
+        const storageKey = getDocumentKey(docType);
+        localStorage.setItem(storageKey, JSON.stringify(fileData));
+
+        // Reload documents to reflect changes
+        loadDocuments();
+
+        setUploadSuccess(true);
+        setIsUploading(false);
+
+        // Dispatch storage event to notify other tabs/components
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: storageKey,
+            newValue: JSON.stringify(fileData),
+          })
+        );
+
+        // Close modal after showing success
+        setTimeout(() => {
+          closeUploadModal();
+        }, 1500);
+      } catch (error) {
+        console.error("Error uploading document:", error);
+        setUploadError("Error saving document. Please try again.");
+        setIsUploading(false);
+      }
+    };
+
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const getDocColor = (type) => {
+    const colors = {
+      resume: "bg-green-100 text-green-600",
+      contract: "bg-blue-100 text-blue-600",
+      performance: "bg-purple-100 text-purple-600",
+      payroll: "bg-orange-100 text-orange-600",
+    };
+    return colors[type] || "bg-gray-100 text-gray-600";
+  };
+
+  const getDocBgColor = (type) => {
+    const colors = {
+      resume: "bg-gradient-to-br from-green-50 to-green-100 border-green-200",
+      contract: "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200",
+      performance:
+        "bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200",
+      payroll:
+        "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200",
+    };
+    return (
+      colors[type] ||
+      "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+    );
+  };
+
+  const getDocTypeName = (type) => {
+    const names = {
+      resume: "Resume",
+      contract: "Employment Contract",
+      performance: "Performance Review",
+      payroll: "Payroll Details",
+    };
+    return names[type] || "Document";
+  };
+
+  // Calculate time elapsed since upload
+  const getTimeElapsed = (uploadDate) => {
+    if (!uploadDate) return "Not uploaded";
+
+    const now = new Date();
+    const uploadTime = new Date(uploadDate);
+    const diffMs = now - uploadTime;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return "Today";
+    } else if (diffDays === 1) {
+      return "Yesterday";
+    } else if (diffDays < 30) {
+      return `${diffDays} days ago`;
+    } else {
+      const diffMonths = Math.floor(diffDays / 30);
+      return `${diffMonths} ${diffMonths === 1 ? "month" : "months"} ago`;
+    }
+  };
+
+  const toggleDropdown = (id) => {
+    if (activeDropdown === id) {
+      setActiveDropdown(null);
+    } else {
+      setActiveDropdown(id);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-800">Documents</h3>
+
+        <div className="flex items-center gap-3">
+          <div
+            className="relative cursor-pointer"
+            onMouseEnter={() => setShowTooltip("info")}
+            onMouseLeave={() => setShowTooltip(null)}
+          >
+            <Info size={18} className="text-gray-500" />
+            {showTooltip === "info" && (
+              <div className="absolute right-0 z-10 w-64 p-3 text-xs bg-white rounded-lg shadow-lg border text-gray-600">
+                You can only upload and update your resume. Other documents are
+                managed by the HR department.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {documents.map((doc) => (
+          <div
+            key={doc.id}
+            className={`border rounded-xl shadow-sm hover:shadow transition-shadow ${getDocBgColor(
+              doc.type
+            )}`}
+          >
+            <div className="p-5 flex items-center justify-between">
+              <div className="flex items-center">
+                <div
+                  className={`h-14 w-14 rounded-full ${getDocColor(
+                    doc.type
+                  )} flex items-center justify-center shadow-sm`}
+                >
+                  <FileText size={24} />
+                </div>
+
+                <div className="ml-4">
+                  <p className="font-semibold text-gray-800">{doc.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {doc.isAttached
+                      ? `${doc.fileType} • ${doc.size} • ${getTimeElapsed(
+                          doc.date
+                        )}`
+                      : "Not attached - Contact HR to request this document"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown(doc.id)}
+                  className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100"
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+
+                {activeDropdown === doc.id && (
+                  <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-40">
+                    {doc.isAttached && (
+                      <button
+                        onClick={() => handlePreview(doc.file)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center"
+                      >
+                        <Eye size={14} className="mr-2" />
+                        View Document
+                      </button>
+                    )}
+
+                    {doc.isAttached && (
+                      <button
+                        onClick={() => window.open(doc.file)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center"
+                      >
+                        <Download size={14} className="mr-2" />
+                        Download
+                      </button>
+                    )}
+
+                    {doc.userUploadable && (
+                      <button
+                        onClick={() => openUploadModal(doc.type)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center"
+                      >
+                        <Upload size={14} className="mr-2" />
+                        {doc.isAttached ? "Replace" : "Upload"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex border-t border-gray-200 bg-white/50 rounded-b-xl overflow-hidden">
+              {doc.isAttached ? (
+                <>
+                  <button
+                    onClick={() => handlePreview(doc.file)}
+                    className="py-2 flex-1 text-indigo-600 hover:bg-indigo-50 text-sm font-medium transition-colors flex items-center justify-center"
+                  >
+                    <Eye size={14} className="mr-1" />
+                    View
+                  </button>
+                  <div className="w-px bg-gray-200"></div>
+                  <button
+                    onClick={() => window.open(doc.file)}
+                    className="py-2 flex-1 text-indigo-600 hover:bg-indigo-50 text-sm font-medium transition-colors flex items-center justify-center"
+                  >
+                    <Download size={14} className="mr-1" />
+                    Download
+                  </button>
+                </>
+              ) : (
+                <div className="py-2 flex-1 text-gray-400 text-sm font-medium text-center">
+                  Document not available
+                </div>
+              )}
+
+              {doc.userUploadable && (
+                <>
+                  <div className="w-px bg-gray-200"></div>
+                  <button
+                    onClick={() => openUploadModal(doc.type)}
+                    className="py-2 flex-1 text-indigo-600 hover:bg-indigo-50 text-sm font-medium transition-colors flex items-center justify-center"
+                  >
+                    <Upload size={14} className="mr-1" />
+                    {doc.isAttached ? "Replace" : "Upload"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl overflow-hidden w-full max-w-md shadow-2xl">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex justify-between items-center">
+              <h3 className="font-bold text-lg flex items-center">
+                <FileText size={20} className="mr-2" />
+                Upload Your Resume
+              </h3>
+              <button
+                onClick={closeUploadModal}
+                className="text-white hover:bg-white/20 p-1 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {uploadSuccess ? (
+                <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center mb-6 border border-green-200">
+                  <CheckCircle size={24} className="mr-3 text-green-600" />
+                  <div>
+                    <p className="font-medium">
+                      Document uploaded successfully!
+                    </p>
+                    <p className="text-sm">
+                      Your document has been updated and is now available.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Document Type Info */}
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-1 font-medium">
+                      Document Type
+                    </p>
+                    <div className="flex items-center p-3 rounded-lg bg-indigo-50 border border-indigo-200">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mr-3">
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-indigo-700">Resume</p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Your curriculum vitae and professional background
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File upload area */}
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-colors mb-5 ${
+                      selectedFile
+                        ? "border-green-300 bg-green-50"
+                        : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                    }`}
+                    onClick={() =>
+                      document.getElementById("file-upload").click()
+                    }
+                  >
+                    <input
+                      type="file"
+                      id="file-upload"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept=".pdf,.docx,.doc"
+                    />
+
+                    {selectedFile ? (
+                      <>
+                        <CheckCircle
+                          size={36}
+                          className="text-green-500 mb-2"
+                        />
+                        <p className="font-medium text-green-700">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB •{" "}
+                          {selectedFile.type.includes("pdf") ? "PDF" : "DOCX"}
+                        </p>
+                        <div className="flex mt-3">
+                          <button
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 bg-indigo-50 rounded-md mr-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (previewUrl) {
+                                window.open(previewUrl, "_blank");
+                              }
+                            }}
+                            disabled={!previewUrl}
+                          >
+                            <Eye size={14} className="inline mr-1" />
+                            Preview
+                          </button>
+                          <button
+                            className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 bg-red-50 rounded-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFile(null);
+                              setPreviewUrl("");
+                            }}
+                          >
+                            <X size={14} className="inline mr-1" />
+                            Remove
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={36} className="text-gray-400 mb-2" />
+                        <p className="font-medium text-gray-700">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          PDF or DOCX (max 10MB)
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Error message */}
+                  {uploadError && (
+                    <div className="mb-4 p-3 bg-red-50 rounded-lg flex items-center text-red-600 border border-red-200">
+                      <AlertCircle size={18} className="mr-2" />
+                      <p className="text-sm">{uploadError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={closeUploadModal}
+                      className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => updateDocument()}
+                      disabled={!selectedFile || isUploading}
+                      className={`px-4 py-2 rounded-lg text-sm text-white font-medium ${
+                        selectedFile && !isUploading
+                          ? "bg-indigo-600 hover:bg-indigo-700"
+                          : "bg-gray-400 cursor-not-allowed"
+                      } transition-colors flex items-center`}
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={16} className="mr-2" />
+                          Upload Document
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Documents;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ Replaced next/router
 import SpacesSidebar from "./sidebar/SpacesSidebar";
 import Navbar from "./navbar/Navbar";
 import ListView from "./views/ListView";
@@ -10,38 +11,47 @@ import TimelineView from "./views/TimelineView";
 import WorkloadView from "./views/WorkloadView";
 import ActivityView from "./views/ActivityView";
 import OverviewView from "./views/OverviewView";
+import useSpacesStore from "@/store/useSpacesStore";
+import { isAuthenticated } from "@/utils/auth";
 
 const WorkspacePage = () => {
+  const navigate = useNavigate(); // ✅ react-router hook
+  const { fetchSpaces, spaces, loading, error } = useSpacesStore();
   const [selectedProjectList, setSelectedProjectList] = useState(null);
   const [activeView, setActiveView] = useState("overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
 
-  // Simulate initial loading
+  // ✅ Redirect to login if not authenticated
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isAuthenticated()) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setPageLoading(true);
+        await fetchSpaces();
+      } catch (err) {
+        console.error("Error loading workspace data:", err);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    loadData();
+  }, [fetchSpaces]);
 
   const handleSelectProjectList = (projectListId) => {
     setSelectedProjectList(projectListId);
-
-    // If no view is selected, default to overview
-    if (!activeView) {
-      setActiveView("overview");
-    }
+    if (!activeView) setActiveView("overview");
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
 
-  // Render the appropriate view based on activeView state
   const renderView = () => {
-    // Display loading state
-    if (isLoading) {
+    if (pageLoading || loading) {
       return (
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -49,7 +59,26 @@ const WorkspacePage = () => {
       );
     }
 
-    // If no project is selected
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full">
+          <div className="text-red-500 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Error Loading Data</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => fetchSpaces()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
     if (!selectedProjectList) {
       return (
         <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto text-center p-6">
@@ -87,7 +116,6 @@ const WorkspacePage = () => {
       );
     }
 
-    // Render the selected view
     switch (activeView) {
       case "overview":
         return <OverviewView projectListId={selectedProjectList} />;
@@ -114,12 +142,7 @@ const WorkspacePage = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar - Full Height */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${
-          sidebarCollapsed ? "w-16" : "w-72"
-        }`}
-      >
+      <div className={`transition-all duration-300 ease-in-out ${sidebarCollapsed ? "w-16" : "w-72"}`}>
         <SpacesSidebar
           onSelectProjectList={handleSelectProjectList}
           isCollapsed={sidebarCollapsed}
@@ -128,7 +151,6 @@ const WorkspacePage = () => {
         />
       </div>
 
-      {/* Main Content: Navbar + Views */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Navbar
           activeView={activeView}
