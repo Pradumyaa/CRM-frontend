@@ -1,7 +1,8 @@
 // src/utils/apiClient.js
 
 // For Vite, use import.meta.env instead of process.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 /**
  * Base API client for making requests to the backend
@@ -12,13 +13,13 @@ const apiClient = {
    * @returns {Object} Headers object
    */
   getHeaders() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const headers = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     return headers;
@@ -32,7 +33,7 @@ const apiClient = {
   async get(endpoint) {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'GET',
+        method: "GET",
         headers: this.getHeaders(),
       });
 
@@ -57,7 +58,7 @@ const apiClient = {
   async post(endpoint, data) {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
@@ -83,7 +84,7 @@ const apiClient = {
   async put(endpoint, data) {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
@@ -108,7 +109,7 @@ const apiClient = {
   async delete(endpoint) {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: this.getHeaders(),
       });
 
@@ -127,63 +128,163 @@ const apiClient = {
 
 // Calendar-specific API methods
 export const calendarApi = {
-  
   getAttendance(employeeId, startDate, endDate) {
-    return apiClient.get(`/calendar/attendance?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`);
+    return apiClient.get(
+      `/calendar/attendance?employeeId=${employeeId}&startDate=${startDate}&endDate=${endDate}`
+    );
   },
 
-  
   getAllAttendance(startDate, endDate) {
-    return apiClient.get(`/calendar/attendance/all?startDate=${startDate}&endDate=${endDate}`);
+    return apiClient.get(
+      `/calendar/attendance/all?startDate=${startDate}&endDate=${endDate}`
+    );
   },
 
   clockIn(employeeId) {
-    return apiClient.post('/calendar/attendance/clock-in', { employeeId });
+    return apiClient.post("/calendar/attendance/clock-in", { employeeId });
   },
 
   clockOut(employeeId, isAutoLogout = false) {
-    return apiClient.post('/calendar/attendance/clock-out', {
+    return apiClient.post("/calendar/attendance/clock-out", {
       employeeId,
-      isAutoLogout
+      isAutoLogout,
     });
   },
 
-  requestDayOff(employeeId, date, reason) {
-    return apiClient.post('/calendar/attendance/day-off', {
-      employeeId,
-      date,
-      reason
-    });
+  // Request day off
+  requestDayOff: async (employeeId, date, reason) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/calendar/attendance/day-off/request`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            employeeId,
+            date,
+            reason,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error requesting day off:", error);
+      throw error;
+    }
   },
 
-  processDayOffRequest(adminId, employeeId, date, approved) {
-    return apiClient.post('/calendar/attendance/day-off/approve', {
-      adminId,
-      employeeId,
-      date,
-      approved
-    });
+  // Process day off request (Approve/Reject)
+  processDayOffRequest: async (adminId, employeeId, date, approved) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/calendar/attendance/day-off/approve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            adminId,
+            employeeId,
+            date,
+            approved,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error processing day off request:", error);
+      throw error;
+    }
   },
 
-  getPendingRequests(adminId) {
-    return apiClient.get(`/attendance/pending-requests?adminId=${adminId}`);
+  getPendingRequests: async (adminId) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/calendar/attendance/day-off/pending?adminId=${adminId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching pending day off requests:", error);
+      throw error;
+    }
   },
 
-  checkAdminStatus(employeeId) {
-    return apiClient.get(`/employees/${employeeId}`);
-  },
+  // Check if employee is admin
+  checkAdminStatus: async (employeeId) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/employees/admin/${employeeId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      throw error;
+    }
+  },
   getHolidays(startDate, endDate) {
-    return apiClient.get(`/calendar/holidays?startDate=${startDate}&endDate=${endDate}`);
+    return apiClient.get(
+      `/calendar/holidays?startDate=${startDate}&endDate=${endDate}`
+    );
   },
 
   setHoliday(date, description, isHoliday = true) {
-    return apiClient.post('/calendar/holidays', {
+    return apiClient.post("/calendar/holidays", {
       date,
       description,
-      isHoliday
+      isHoliday,
     });
-  }
+  },
 };
 
 export default apiClient;

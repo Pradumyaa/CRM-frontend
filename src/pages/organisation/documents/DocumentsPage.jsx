@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   Filter,
   ChevronDown,
@@ -16,6 +15,7 @@ import Pagination from "@/pages/components/Pagination";
 import DocumentsTable from "./components/DocumentsTable";
 import DocumentStatsCards from "./components/DocumentStatsCards";
 import DocumentUploadModal from "./components/DocumentUploadModal";
+import documentService from "../../../services/DocumentService";
 
 const DocumentsPage = () => {
   const [employees, setEmployees] = useState([]);
@@ -29,7 +29,13 @@ const DocumentsPage = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [username, setUsername] = useState("Jane Doe"); // Set default or get from auth
+  const [username, setUsername] = useState("");
+  const [docStats, setDocStats] = useState({
+    totalDocs: 0,
+    uploadedDocs: 0,
+    completionPercentage: 0,
+  });
+  const [error, setError] = useState(null);
   const itemsPerPage = 10;
 
   // Document types definition - Moved here for global access
@@ -62,38 +68,177 @@ const DocumentsPage = () => {
       color: "green",
       description: "Employee's curriculum vitae and professional background",
     },
+    {
+      id: "identification",
+      label: "Identification Documents",
+      required: true,
+      color: "red",
+      description: "Government issued identification documents",
+    },
+    {
+      id: "certifications",
+      label: "Certifications",
+      required: false,
+      color: "indigo",
+      description: "Professional certifications and qualifications",
+    },
   ];
 
+  // Get current user from localStorage
+  useEffect(() => {
+    const employeeId = localStorage.getItem("employeeId");
+    if (employeeId) {
+      fetchCurrentUser(employeeId);
+    }
+  }, []);
+
+  // Fetch current user details
+  const fetchCurrentUser = async (employeeId) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found.");
+      }
+
+      const response = await fetch(
+        `http://localhost:3000/api/employees/${employeeId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch current user");
+      }
+
+      const data = await response.json();
+      setUsername(data.employee.name || "Admin User");
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+    }
+  };
+
+  // Fetch employees and their documents
   const fetchEmployees = async () => {
     setIsLoading(true);
-    try {
-      const response = await axios.get("http://localhost:3000/api/employees");
+    setError(null);
 
-      // Add documents property to each employee if not exists
-      const employeesWithDocs = response.data.employees.map((emp) => ({
-        ...emp,
-        documents: {
-          contract: localStorage.getItem(
-            `document_contract_${emp.employeeId || emp._id}`
-          ),
-          payroll: localStorage.getItem(
-            `document_payroll_${emp.employeeId || emp._id}`
-          ),
-          performance: localStorage.getItem(
-            `document_performance_${emp.employeeId || emp._id}`
-          ),
-          resume: localStorage.getItem(
-            `document_resume_${emp.employeeId || emp._id}`
-          ),
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found.");
+      }
+
+      // First get all employees
+      const response = await fetch("http://localhost:3000/api/employees", {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      }));
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch employees");
+      }
+
+      const employeesData = await response.json();
+
+      // For each employee, get their documents
+      const employeesWithDocs = await Promise.all(
+        employeesData.employees.map(async (emp) => {
+          try {
+            // Get documents from API
+            const empDocs = await documentService.getEmployeeDocuments(
+              emp.employeeId || emp._id
+            );
+
+            // Build a documents object to match the expected format
+            const docsObject = {};
+            documentTypes.forEach((docType) => {
+              const foundDoc = empDocs.find(
+                (d) => d.documentType === docType.id
+              );
+              if (foundDoc) {
+                // Format as expected by the UI
+                docsObject[docType.id] = JSON.stringify({
+                  name: foundDoc.name,
+                  type: foundDoc.type,
+                  size: foundDoc.size,
+                  date: foundDoc.createdAt || foundDoc.uploadDate,
+                  dataUrl: foundDoc.url,
+                  id: foundDoc.id,
+                });
+              } else {
+                // Check localStorage as fallback during migration period
+                const legacyDoc = localStorage.getItem(
+                  `document_${docType.id}_${emp.employeeId || emp._id}`
+                );
+                if (legacyDoc) {
+                  docsObject[docType.id] = legacyDoc;
+                }
+              }
+            });
+
+            return {
+              ...emp,
+              documents: docsObject,
+            };
+          } catch (err) {
+            console.error(
+              `Error fetching documents for employee ${
+                emp.employeeId || emp._id
+              }:`,
+              err
+            );
+            return {
+              ...emp,
+              documents: {},
+            };
+          }
+        })
+      );
 
       setEmployees(employeesWithDocs);
       setFilteredEmployees(employeesWithDocs);
+
+      // Fetch document stats
+      await fetchDocumentStats();
     } catch (error) {
       console.error("Error fetching employees:", error);
+      setError("Failed to fetch employees. Please try again later.");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Fetch document statistics
+  const fetchDocumentStats = async () => {
+    try {
+      const stats = await fetch("http://localhost:3000/api/documents/stats", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (stats.ok) {
+        const statsData = await stats.json();
+        if (statsData.success) {
+          setDocStats({
+            totalDocs: statsData.stats.totalDocuments,
+            uploadedDocs: statsData.stats.totalDocuments,
+            completionPercentage: statsData.stats.completionRate,
+          });
+          return;
+        }
+      }
+
+      // If API fails, calculate stats client-side
+      calculateDocumentStats();
+    } catch (error) {
+      console.error("Error fetching document stats:", error);
+      calculateDocumentStats();
     }
   };
 
@@ -104,9 +249,6 @@ const DocumentsPage = () => {
   const refreshData = async () => {
     setIsRefreshing(true);
     await fetchEmployees();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 800); // Give a sense of refreshing
   };
 
   // Apply status filters
@@ -149,7 +291,7 @@ const DocumentsPage = () => {
     setSearchQuery(query);
   };
 
-  const handleDeleteDocument = (employee, docType) => {
+  const handleDeleteDocument = async (employee, docType) => {
     if (
       window.confirm(
         `Are you sure you want to delete this ${
@@ -158,40 +300,32 @@ const DocumentsPage = () => {
       )
     ) {
       try {
-        const storageKey = `document_${docType}_${
-          employee.employeeId || employee._id
-        }`;
-        localStorage.removeItem(storageKey);
+        setIsRefreshing(true);
 
-        const updatedEmployees = employees.map((emp) => {
-          if (
-            (emp.employeeId || emp._id) ===
-            (employee.employeeId || employee._id)
-          ) {
-            return {
-              ...emp,
-              documents: {
-                ...emp.documents,
-                [docType]: null,
-              },
-            };
+        // Check if this is a database document or localStorage document
+        const documentString = employee.documents[docType];
+        if (documentString) {
+          const documentData = JSON.parse(documentString);
+
+          if (documentData.id) {
+            // Delete from database using the API
+            await documentService.deleteDocument(documentData.id);
+          } else {
+            // Legacy document - remove from localStorage
+            const storageKey = `document_${docType}_${
+              employee.employeeId || employee._id
+            }`;
+            localStorage.removeItem(storageKey);
           }
-          return emp;
-        });
+        }
 
-        setEmployees(updatedEmployees);
-        
-        // Dispatch storage event to notify the user's profile page
-        window.dispatchEvent(
-          new StorageEvent("storage", {
-            key: storageKey,
-            oldValue: employee.documents[docType],
-            newValue: null,
-          })
-        );
+        // Refresh data to reflect changes
+        await fetchEmployees();
       } catch (error) {
         console.error("Error deleting document:", error);
         alert("Failed to delete document. Please try again.");
+      } finally {
+        setIsRefreshing(false);
       }
     }
   };
@@ -208,7 +342,7 @@ const DocumentsPage = () => {
 
       // Create a temporary link and trigger download
       const link = document.createElement("a");
-      link.href = fileData.dataUrl;
+      link.href = fileData.dataUrl || fileData.url;
       link.download = fileData.name;
       document.body.appendChild(link);
       link.click();
@@ -225,34 +359,28 @@ const DocumentsPage = () => {
     setIsUploadModalOpen(true);
   };
 
-  const handleSaveDocument = (employeeId, docType, fileData) => {
-    const storageKey = `document_${docType}_${employeeId}`;
+  const handleSaveDocument = async (employeeId, docType, fileData) => {
+    try {
+      setIsRefreshing(true);
 
-    // Save to localStorage
-    localStorage.setItem(storageKey, JSON.stringify(fileData));
-
-    const updatedEmployees = employees.map((emp) => {
-      if ((emp.employeeId || emp._id) === employeeId) {
-        return {
-          ...emp,
-          documents: {
-            ...emp.documents,
-            [docType]: JSON.stringify(fileData),
-          },
-        };
+      // First upload to Cloudinary using our service
+      const file = fileData.file; // Assuming modal passes the file object
+      if (!file) {
+        throw new Error("No file provided");
       }
-      return emp;
-    });
 
-    setEmployees(updatedEmployees);
+      await documentService.uploadDocument(file, employeeId, docType);
 
-    // Dispatch storage event to notify the user's profile page
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: storageKey,
-        newValue: JSON.stringify(fileData),
-      })
-    );
+      // Refresh data to show updated documents
+      await fetchEmployees();
+
+      // Success notification handled by the modal
+    } catch (error) {
+      console.error("Error saving document:", error);
+      alert("Error uploading document. Please try again.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Pagination logic
@@ -282,7 +410,7 @@ const DocumentsPage = () => {
     return "Good Evening";
   };
 
-  // Calculate document statistics
+  // Calculate document statistics - used if API call fails
   const calculateDocumentStats = () => {
     let totalDocs = 0;
     let uploadedDocs = 0;
@@ -296,15 +424,61 @@ const DocumentsPage = () => {
       });
     });
 
-    return {
+    setDocStats({
       totalDocs,
       uploadedDocs,
       completionPercentage:
         totalDocs > 0 ? Math.round((uploadedDocs / totalDocs) * 100) : 0,
-    };
+    });
   };
 
-  const docStats = calculateDocumentStats();
+  // Migrate legacy documents for all employees
+  const migrateLegacyDocuments = async () => {
+    if (
+      !window.confirm(
+        "This will migrate all legacy documents stored in localStorage to the cloud storage. Continue?"
+      )
+    ) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    let migratedCount = 0;
+    let failedCount = 0;
+
+    try {
+      for (const employee of employees) {
+        const employeeId = employee.employeeId || employee._id;
+        if (!employeeId) continue;
+
+        try {
+          const result = await documentService.migrateLocalDocumentsToBackend(
+            employeeId
+          );
+          migratedCount += result.migratedCount;
+          failedCount += result.failedCount;
+        } catch (empError) {
+          console.error(
+            `Failed to migrate documents for employee ${employeeId}:`,
+            empError
+          );
+          failedCount++;
+        }
+      }
+
+      alert(
+        `Migration complete: ${migratedCount} documents migrated successfully, ${failedCount} failed.`
+      );
+
+      // Refresh to show updated data
+      await fetchEmployees();
+    } catch (error) {
+      console.error("Error during bulk migration:", error);
+      alert("There was an error during document migration. Please try again.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -334,13 +508,12 @@ const DocumentsPage = () => {
                 Refresh Data
               </button>
               <button
-                onClick={() => {
-                  // You could add functionality to add a document in bulk here
-                }}
+                onClick={migrateLegacyDocuments}
                 className="bg-white text-indigo-700 px-4 py-2 rounded-lg flex items-center transition-all hover:bg-opacity-90 shadow-lg hover:shadow-xl"
+                disabled={isRefreshing}
               >
                 <Plus className="h-5 w-5 mr-2" />
-                Bulk Upload
+                Migrate Legacy Docs
               </button>
             </div>
           </div>

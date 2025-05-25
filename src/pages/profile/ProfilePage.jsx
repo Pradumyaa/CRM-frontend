@@ -1,3 +1,4 @@
+// components/ProfilePage.jsx - Updated Skills Section
 import React, { useEffect, useState, useRef } from "react";
 import {
   User,
@@ -16,12 +17,17 @@ import {
   Download,
   Mail,
   Phone,
+  RefreshCw,
+  Sparkles,
+  AlertCircle,
+  Info,
 } from "lucide-react";
 
 import Overview from "./profile-components/Overview";
 import Projects from "./profile-components/Projects";
 import Documents from "./profile-components/Documents";
 import PerformanceStats from "./profile-components/PerformanceStats";
+import resumeParserService from "../../services/ResumeParserservice";
 
 // Simple Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -42,8 +48,10 @@ const Modal = ({ isOpen, onClose, children }) => {
   );
 };
 
-const ProfilePage = () => {
+const ProfilePage = ({ profileId }) => {
   const [employeeData, setEmployeeData] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [profileImage, setProfileImage] = useState("/api/placeholder/80/80");
@@ -52,37 +60,185 @@ const ProfilePage = () => {
   const [imageHover, setImageHover] = useState(false);
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [loadingError, setLoadingError] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [skillsError, setSkillsError] = useState(null);
+  const [hasResume, setHasResume] = useState(false);
 
-  const employeeId = localStorage.getItem("employeeId");
+  // Get current user's ID from localStorage
+  const currentEmployeeId = localStorage.getItem("employeeId");
 
+  // Set the employee ID to view - either the one passed in props or the current user's ID
+  const employeeId = profileId || currentEmployeeId;
+
+  // Check if viewing own profile
+  useEffect(() => {
+    setIsOwnProfile(employeeId === currentEmployeeId);
+  }, [employeeId, currentEmployeeId]);
+
+  // Check if current user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.error("Authentication token not found. Please log in again.");
+          return;
+        }
+
+        const response = await fetch(
+          `http://localhost:3000/api/employees/admin/${currentEmployeeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to check admin status");
+        }
+
+        const data = await response.json();
+        setIsAdmin(data.isAdmin);
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+      }
+    };
+
+    checkAdminStatus();
+  }, [currentEmployeeId]);
+
+  // Update profile image when employee data changes
   useEffect(() => {
     if (employeeData && employeeData.images && employeeData.images.length > 0) {
-      console.log("Setting profile image URL:", employeeData.images[0]);
       setProfileImage(
         `${employeeData.images[0]}?timestamp=${new Date().getTime()}`
       );
     }
   }, [employeeData]);
 
+  // Load skills from resume using API
+  const loadSkills = async () => {
+    setSkillsLoading(true);
+    setSkillsError(null);
+
+    try {
+      console.log(`Loading skills for employee: ${employeeId}`);
+
+      // Check if employee has a resume first
+      const resumeExists = await resumeParserService.hasResume(employeeId);
+      setHasResume(resumeExists);
+
+      if (!resumeExists) {
+        console.log("No resume found for employee, using default skills");
+        setSkills(resumeParserService.getDefaultSkills());
+        setSkillsError(
+          "No resume uploaded. Upload a resume to extract technical skills."
+        );
+        setSkillsLoading(false);
+        return;
+      }
+
+      // Get skills from resume using the API
+      const extractedSkills = await resumeParserService.getEmployeeSkills(
+        employeeId
+      );
+
+      // Format and limit skills to top 5
+      const formattedSkills = resumeParserService
+        .formatSkills(extractedSkills)
+        .slice(0, 5);
+      setSkills(formattedSkills);
+
+      console.log(`Loaded ${formattedSkills.length} skills from resume`);
+    } catch (error) {
+      console.error("Error loading skills:", error);
+      setSkillsError(
+        "Failed to load skills from resume. Please try refreshing."
+      );
+      // Use default skills as fallback
+      setSkills(resumeParserService.getDefaultSkills().slice(0, 5));
+    } finally {
+      setSkillsLoading(false);
+    }
+  };
+
+  // Refresh skills from resume
+  const refreshSkills = async () => {
+    setSkillsLoading(true);
+    setSkillsError(null);
+
+    try {
+      console.log("Refreshing skills from resume...");
+
+      // Force refresh skills from API
+      const refreshedSkills = await resumeParserService.refreshEmployeeSkills(
+        employeeId
+      );
+
+      // Format and limit skills to top 5
+      const formattedSkills = resumeParserService
+        .formatSkills(refreshedSkills)
+        .slice(0, 5);
+      setSkills(formattedSkills);
+
+      // Check if resume exists after refresh
+      const resumeExists = await resumeParserService.hasResume(employeeId);
+      setHasResume(resumeExists);
+
+      if (!resumeExists) {
+        setSkillsError(
+          "No resume found. Upload a resume to extract technical skills."
+        );
+      }
+
+      console.log(`Refreshed ${formattedSkills.length} skills`);
+    } catch (error) {
+      console.error("Error refreshing skills:", error);
+      setSkillsError("Failed to refresh skills. Please try again.");
+    } finally {
+      setSkillsLoading(false);
+    }
+  };
+
+  // Fetch employee data
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
-        const employeeId = localStorage.getItem("employeeId");
-        if (!employeeId) {
-          console.error("Employee ID not found in localStorage");
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          setLoadingError(
+            "Authentication token not found. Please log in again."
+          );
           return;
         }
 
-        // Fetch employee data from backend
+        if (!employeeId) {
+          setLoadingError("Employee ID not found");
+          return;
+        }
+
+        // Fetch employee data from backend with authentication token
         const response = await fetch(
-          `http://localhost:3000/api/employees/${employeeId}`
+          `http://localhost:3000/api/employees/${employeeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
+
         if (!response.ok) {
-          throw new Error("Failed to fetch employee data");
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch employee data");
         }
 
         const data = await response.json();
-        console.log("Fetched data:", data);
+        console.log("Fetched employee data:", data);
 
         const employee = {
           ...data.employee,
@@ -98,21 +254,26 @@ const ProfilePage = () => {
             `${employee.images[0]}?timestamp=${new Date().getTime()}`
           );
         }
+
+        // Load skills after employee data is loaded
+        loadSkills();
       } catch (error) {
-        console.error("Error uploading image:", error);
         console.error("Error fetching employee data:", error);
+        setLoadingError(`Error loading profile: ${error.message}`);
       }
     };
-    fetchEmployeeData();
-  }, []);
 
+    fetchEmployeeData();
+  }, [employeeId]);
+
+  // Update employee data
   const handleEditSubmit = async () => {
     try {
       setUploading(true);
-      const employeeId = localStorage.getItem("employeeId");
-      if (!employeeId) {
-        console.error("Employee ID not found in localStorage");
-        return;
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
       }
 
       const response = await fetch(
@@ -121,17 +282,19 @@ const ProfilePage = () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(editForm),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to update employee data");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update employee data");
       }
 
       const updatedData = await response.json();
-      setEmployeeData(updatedData.employee);
+      setEmployeeData(updatedData.employee || updatedData);
       setSaveSuccess(true);
 
       // Reset success message after a delay
@@ -146,26 +309,33 @@ const ProfilePage = () => {
     }
   };
 
+  // Handle profile image upload
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("employeeId", localStorage.getItem("employeeId"));
+      formData.append("employeeId", employeeId);
 
       setUploading(true);
 
       try {
+        const token = localStorage.getItem("token");
+
         const response = await fetch(
           "http://localhost:3000/api/images/upload",
           {
             method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
             body: formData,
           }
         );
 
         if (!response.ok) {
-          throw new Error("Failed to upload image");
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to upload image");
         }
 
         const result = await response.json();
@@ -186,6 +356,23 @@ const ProfilePage = () => {
       }
     }
   };
+
+  // Show loading state
+  if (loadingError) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="p-6 bg-white rounded-lg shadow-lg text-center">
+          <div className="text-red-500 mb-4">
+            <X size={48} className="mx-auto" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            Error Loading Profile
+          </h3>
+          <p className="text-gray-600">{loadingError}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!employeeData) {
     return (
@@ -236,19 +423,27 @@ const ProfilePage = () => {
         <div className="container mx-auto px-6 py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div>
-              <h1 className="text-3xl font-bold mb-1">
-                {getGreeting()}, {employeeData.name} 👋
-              </h1>
+              {isOwnProfile ? (
+                <h1 className="text-3xl font-bold mb-1">
+                  {getGreeting()}, {employeeData.name} 👋
+                </h1>
+              ) : (
+                <h1 className="text-3xl font-bold mb-1">
+                  {employeeData.name}'s Profile
+                </h1>
+              )}
               <p className="opacity-80 text-lg">{getTodayDate()}</p>
             </div>
             <div className="mt-4 md:mt-0 flex items-center space-x-2">
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-white text-indigo-700 px-4 py-2 rounded-lg flex items-center transition-all hover:bg-opacity-90 shadow-lg hover:shadow-xl"
-              >
-                <Edit2 className="h-5 w-5 mr-2" />
-                Edit Profile
-              </button>
+              {(isOwnProfile || isAdmin) && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-white text-indigo-700 px-4 py-2 rounded-lg flex items-center transition-all hover:bg-opacity-90 shadow-lg hover:shadow-xl"
+                >
+                  <Edit2 className="h-5 w-5 mr-2" />
+                  Edit Profile
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -262,13 +457,15 @@ const ProfilePage = () => {
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
               {/* Profile Header */}
               <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-32 relative">
-                {/* Edit Button */}
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="absolute top-4 right-4 bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-all duration-200 focus:outline-none"
-                >
-                  <Edit2 size={18} className="text-indigo-600" />
-                </button>
+                {/* Edit Button - Only show if it's own profile or admin */}
+                {(isOwnProfile || isAdmin) && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="absolute top-4 right-4 bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-all duration-200 focus:outline-none"
+                  >
+                    <Edit2 size={18} className="text-indigo-600" />
+                  </button>
+                )}
               </div>
 
               {/* Profile Image */}
@@ -286,25 +483,30 @@ const ProfilePage = () => {
                     />
                   </div>
 
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`absolute bottom-0 right-0 bg-indigo-600 p-2 rounded-full shadow-lg cursor-pointer transition-all duration-300 ${
-                      imageHover
-                        ? "opacity-100 transform scale-100"
-                        : "opacity-80 transform scale-90"
-                    }`}
-                  >
-                    <Camera size={16} className="text-white" />
-                  </button>
+                  {/* Only show the camera button if it's own profile or admin */}
+                  {(isOwnProfile || isAdmin) && (
+                    <>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`absolute bottom-0 right-0 bg-indigo-600 p-2 rounded-full shadow-lg cursor-pointer transition-all duration-300 ${
+                          imageHover
+                            ? "opacity-100 transform scale-100"
+                            : "opacity-80 transform scale-90"
+                        }`}
+                      >
+                        <Camera size={16} className="text-white" />
+                      </button>
 
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploading}
-                  />
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageChange}
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </>
+                  )}
 
                   {uploading && (
                     <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
@@ -420,9 +622,14 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="mt-6 w-full">
-                  <button className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium text-sm rounded-lg transition-all duration-200 flex justify-center items-center hover:shadow-md">
+                  <button
+                    onClick={() => {
+                      setActiveTab("documents");
+                    }}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium text-sm rounded-lg transition-all duration-200 flex justify-center items-center hover:shadow-md"
+                  >
                     <FileText size={16} className="mr-2" />
-                    View Resume
+                    View Documents
                   </button>
                 </div>
               </div>
@@ -430,82 +637,135 @@ const ProfilePage = () => {
 
             {/* Skills Section */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                <Award size={18} className="text-indigo-600 mr-2" />
-                Skills & Expertise
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <Award size={18} className="text-indigo-600 mr-2" />
+                  Skills & Expertise
+                  {skillsLoading && (
+                    <Sparkles
+                      size={16}
+                      className="ml-2 text-yellow-500 animate-pulse"
+                    />
+                  )}
+                </h3>
 
-              <div className="space-y-3">
-                {/* Skill Item */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">JavaScript</span>
-                    <span className="text-xs text-gray-500">Expert</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: "90%" }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">React</span>
-                    <span className="text-xs text-gray-500">Advanced</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: "85%" }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">Node.js</span>
-                    <span className="text-xs text-gray-500">Intermediate</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: "70%" }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">UI/UX Design</span>
-                    <span className="text-xs text-gray-500">Advanced</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: "80%" }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">MongoDB</span>
-                    <span className="text-xs text-gray-500">Intermediate</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: "65%" }}
-                    ></div>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  {skillsError && (
+                    <div className="relative group">
+                      <AlertCircle size={16} className="text-amber-500" />
+                      <div className="absolute right-0 top-6 w-48 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        {skillsError}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={refreshSkills}
+                    disabled={skillsLoading}
+                    className={`text-gray-400 hover:text-indigo-600 p-1 rounded-full hover:bg-gray-100 transition-colors ${
+                      skillsLoading ? "animate-spin" : ""
+                    }`}
+                    title="Refresh skills from resume"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
                 </div>
               </div>
 
-              <button className="mt-4 w-full px-4 py-2 text-sm text-indigo-600 hover:text-white border border-indigo-200 hover:bg-indigo-600 rounded-lg transition-all duration-200">
-                View All Skills
-              </button>
+              {/* Skills Status Info */}
+              {!hasResume && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start">
+                    <Info size={16} className="text-blue-600 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-blue-800 font-medium">
+                        No Resume Found
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Upload a resume in the Documents tab to extract
+                        technical skills automatically
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {skillsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="flex justify-between mb-1">
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        <div className="h-3 bg-gray-200 rounded w-16"></div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {skills.length > 0 ? (
+                    skills.map((skill, index) => (
+                      <div key={index}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium flex items-center">
+                            {skill.color && (
+                              <div
+                                className="w-3 h-3 rounded-full mr-2"
+                                style={{ backgroundColor: skill.color }}
+                              ></div>
+                            )}
+                            {skill.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {skill.expertise}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full transition-all duration-500 ease-out"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.max(0, skill.level)
+                              )}%`,
+                              backgroundColor: skill.color || "#6366f1",
+                            }}
+                          ></div>
+                        </div>
+                        {skill.category && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {skill.category}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <Award size={24} className="mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No skills extracted yet</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Upload a resume to auto-extract skills
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={refreshSkills}
+                  disabled={skillsLoading}
+                  className="flex-1 px-4 py-2 text-sm text-indigo-600 hover:text-white border border-indigo-200 hover:bg-indigo-600 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {skillsLoading ? "Loading..." : "Refresh from Resume"}
+                </button>
+                <button
+                  onClick={() => setActiveTab("documents")}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all duration-200"
+                >
+                  Upload Resume
+                </button>
+              </div>
             </div>
           </div>
 
@@ -555,18 +815,28 @@ const ProfilePage = () => {
                 {activeTab === "projects" && <Projects />}
 
                 {activeTab === "documents" && (
-                  <Documents employeeId={employeeId} />
+                  <Documents
+                    employeeId={employeeId}
+                    isAdmin={isAdmin}
+                    isOwnProfile={isOwnProfile}
+                    onDocumentUpload={() => {
+                      // Refresh skills when a new document (especially resume) is uploaded
+                      setTimeout(() => {
+                        loadSkills();
+                      }, 2000);
+                    }}
+                  />
                 )}
               </div>
             </div>
 
             {/* Performance Statistics */}
-            <PerformanceStats />
+            <PerformanceStats employeeId={employeeId} />
           </div>
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Only visible for own profile or admins */}
       <Modal isOpen={isEditing} onClose={() => setIsEditing(false)}>
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-4 text-gray-800 flex items-center">
@@ -587,25 +857,37 @@ const ProfilePage = () => {
               { label: "Job Title", key: "jobTitle", type: "text" },
               { label: "Email", key: "email", type: "email" },
               { label: "Phone Number", key: "phoneNumber", type: "text" },
-              { label: "Salary", key: "salary", type: "number" },
-              { label: "Department", key: "department", type: "text" },
-              { label: "Manager", key: "manager", type: "text" },
-              { label: "Work Location", key: "location", type: "text" },
-            ].map(({ label, key, type }) => (
-              <div key={key}>
-                <label className="block text-gray-600 text-sm mb-1">
-                  {label}
-                </label>
-                <input
-                  type={type}
-                  value={editForm[key] || ""}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, [key]: e.target.value })
-                  }
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
-                />
-              </div>
-            ))}
+              { label: "Salary", key: "salary", type: "number", admin: true },
+              {
+                label: "Department",
+                key: "department",
+                type: "text",
+                admin: true,
+              },
+              { label: "Manager", key: "manager", type: "text", admin: true },
+              {
+                label: "Work Location",
+                key: "location",
+                type: "text",
+                admin: true,
+              },
+            ]
+              .filter((field) => !field.admin || isAdmin) // Only show admin fields to admins
+              .map(({ label, key, type }) => (
+                <div key={key}>
+                  <label className="block text-gray-600 text-sm mb-1">
+                    {label}
+                  </label>
+                  <input
+                    type={type}
+                    value={editForm[key] || ""}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, [key]: e.target.value })
+                    }
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                  />
+                </div>
+              ))}
 
             {/* About Me Textarea */}
             <div className="md:col-span-2">
@@ -655,21 +937,27 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Status Dropdown */}
-            <div>
-              <label className="block text-gray-600 text-sm mb-1">Status</label>
-              <select
-                value={editForm.status || "Active"}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, status: e.target.value })
-                }
-                className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="On Leave">On Leave</option>
-              </select>
-            </div>
+            {/* Status Dropdown - Admin only */}
+            {isAdmin && (
+              <div>
+                <label className="block text-gray-600 text-sm mb-1">
+                  Status
+                </label>
+                <select
+                  value={editForm.status || "Active"}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, status: e.target.value })
+                  }
+                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Resigned">Resigned</option>
+                  <option value="Absconded">Absconded</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

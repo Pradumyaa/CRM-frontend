@@ -1,11 +1,10 @@
-import React from "react";
+import { useRef, useEffect } from "react";
 import {
   CheckCircle,
   XCircle,
   Eye,
   Edit2,
   Trash2,
-  MoreHorizontal,
   Mail,
   Phone,
   MapPin,
@@ -13,20 +12,11 @@ import {
   Calendar,
   DollarSign,
   Award,
-  RefreshCw,
   Clock,
   AlertTriangle,
 } from "lucide-react";
 
-const EmployeeRow = ({
-  employee,
-  index,
-  showDropdown,
-  setShowDropdown,
-  onEdit,
-  onDelete,
-  onView, // Make sure this prop is passed correctly
-}) => {
+const EmployeeRow = ({ employee, index, onEdit, onDelete, onView }) => {
   const isEven = index % 2 === 0;
 
   // Get status icon and colors
@@ -105,14 +95,6 @@ const EmployeeRow = ({
     } catch (error) {
       return dateString;
     }
-  };
-
-  // Handle dropdown menu
-  const handleDropdownToggle = (e) => {
-    e.stopPropagation();
-    setShowDropdown(
-      showDropdown === employee.employeeId ? null : employee.employeeId
-    );
   };
 
   // Add hover animation to the row
@@ -198,9 +180,9 @@ const EmployeeRow = ({
         </span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <div className="flex items-center justify-end space-x-1 relative">
+        <div className="flex items-center justify-end space-x-1">
           <button
-            onClick={() => onView && onView(employee)} // Make sure this is correctly passing the employee
+            onClick={() => onView && onView(employee)}
             className="text-indigo-600 hover:text-white p-1.5 rounded hover:bg-indigo-600 transition-colors duration-200 tooltip-trigger"
             title="View Profile"
           >
@@ -225,53 +207,6 @@ const EmployeeRow = ({
             <Trash2 className="h-4 w-4" />
             <span className="tooltip">Delete</span>
           </button>
-          <div className="relative">
-            <button
-              onClick={handleDropdownToggle}
-              className="text-gray-600 hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors duration-200 tooltip-trigger"
-              title="More Options"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="tooltip">More</span>
-            </button>
-
-            {showDropdown === employee.employeeId && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
-                <div className="py-1 rounded-md bg-white">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log(`Send email to ${employee.name}`);
-                    }}
-                    className="flex w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
-                  >
-                    <Mail className="h-4 w-4 mr-2 text-indigo-500" />
-                    Send Email
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log(`Reset password for ${employee.name}`);
-                    }}
-                    className="flex w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2 text-indigo-500" />
-                    Reset Password
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log(`Manage permissions for ${employee.name}`);
-                    }}
-                    className="flex w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
-                  >
-                    <Award className="h-4 w-4 mr-2 text-indigo-500" />
-                    Manage Permissions
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Tooltip styles */}

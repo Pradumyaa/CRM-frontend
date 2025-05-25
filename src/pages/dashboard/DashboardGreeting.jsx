@@ -1,12 +1,16 @@
+// pages/dashboard/DashboardGreeting.jsx
 import React, { useState, useEffect } from "react";
-import { Card } from "../components/ui/card";
-import { Button } from "../components/ui/Button";
-import { BellRing, Calendar, Search } from "lucide-react";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/Button";
+import { BellRing, Calendar, Search, UserPlus, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const DashboardGreeting = ({ loading, employee, error }) => {
   const [greeting, setGreeting] = useState("Good Day");
   const [currentTime, setCurrentTime] = useState("");
   const [date, setDate] = useState("");
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     const updateTimeAndGreeting = () => {
@@ -78,17 +82,48 @@ const DashboardGreeting = ({ loading, employee, error }) => {
         </div>
 
         <div className="flex mt-4 md:mt-0 space-x-3">
-          <Button className="relative bg-indigo-200 text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg px-3">
-            <BellRing className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <div className="relative">
+            <Button className="bg-indigo-200 text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg px-3">
+              <BellRing className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                3
+              </span>
+            </Button>
+          </div>
 
-          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 flex items-center">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span>Schedule</span>
-          </Button>
+          {isAdmin ? (
+            // Admin-specific buttons
+            <div className="flex space-x-2">
+              <Link to="/organisation/employeeList">
+                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 flex items-center">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  <span className="hidden md:inline">Add Employee</span>
+                </Button>
+              </Link>
+              <Link to="/attendance">
+                <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2 flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span className="hidden md:inline">Attendance</span>
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            // Employee-specific buttons
+            <div className="flex space-x-2">
+              <Link to="/attendance">
+                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span className="hidden md:inline">Attendance</span>
+                </Button>
+              </Link>
+              <Link to="/workspaces">
+                <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span className="hidden md:inline">Workspaces</span>
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </Card>

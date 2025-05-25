@@ -1,3 +1,4 @@
+// Fixed EmployeeListPage.jsx with proper authentication
 import { useState, useEffect } from "react";
 import { Plus, BriefcaseBusiness } from "lucide-react";
 import axios from "axios";
@@ -15,21 +16,60 @@ const EmployeeListPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState("Jane Doe"); // Set default or get from auth
+  const [username, setUsername] = useState("Admin"); // Will be updated from stored data
+  const [error, setError] = useState(null);
+
+  // Setup axios with auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  };
 
   useEffect(() => {
+    // Get username from localStorage
+    const storedName = localStorage.getItem("userName");
+    if (storedName) {
+      setUsername(storedName);
+    }
+
     const fetchEmployees = async () => {
       setIsLoading(true);
+      setError(null);
+
       try {
-        const response = await axios.get("http://localhost:3000/api/employees");
+        // Include authorization header
+        const response = await axios.get(
+          "http://localhost:3000/api/employees",
+          getAuthHeaders()
+        );
+
+        console.log("Employees data:", response.data);
         setEmployees(response.data.employees || []);
         setFilteredEmployees(response.data.employees || []);
       } catch (error) {
         console.error("Error fetching employees:", error);
+
+        // Set more helpful error message
+        if (error.response) {
+          if (error.response.status === 401) {
+            setError("Authentication required. Please login again.");
+          } else {
+            setError(
+              `Failed to load employees: ${error.response.status} ${error.response.statusText}`
+            );
+          }
+        } else {
+          setError("Network error when trying to fetch employees");
+        }
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchEmployees();
   }, []);
 
@@ -61,10 +101,14 @@ const EmployeeListPage = () => {
     }
 
     try {
-      await axios.delete(`http://localhost:3000/api/employees/${employeeId}`);
-      setEmployees((prev) => prev.filter((emp) => emp._id !== employeeId));
+      await axios.delete(
+        `http://localhost:3000/api/employees/${employeeId}`,
+        getAuthHeaders()
+      );
+
+      setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
       setFilteredEmployees((prev) =>
-        prev.filter((emp) => emp._id !== employeeId)
+        prev.filter((emp) => emp.id !== employeeId)
       );
     } catch (error) {
       console.error("Error deleting employee:", error);
@@ -89,6 +133,26 @@ const EmployeeListPage = () => {
       day: "numeric",
     });
   };
+
+  // Display an error screen if authentication failed
+  if (error && error.includes("Authentication required")) {
+    return (
+      <div className="bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">
+            Authentication Error
+          </h2>
+          <p className="text-gray-700 mb-6">{error}</p>
+          <button
+            onClick={() => (window.location.href = "/login")}
+            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen">
@@ -155,6 +219,13 @@ const EmployeeListPage = () => {
                 <p className="mt-4 text-gray-500">Loading employees...</p>
               </div>
             </div>
+          ) : error ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="text-red-500 text-lg mb-4">Error</div>
+                <p className="text-gray-600">{error}</p>
+              </div>
+            </div>
           ) : (
             <EmployeeTable
               employees={filteredEmployees}
@@ -175,6 +246,7 @@ const EmployeeListPage = () => {
           setEmployeeData={setSelectedEmployee}
           onSave={() => window.location.reload()}
           isEditing={isEditing}
+          getAuthHeaders={getAuthHeaders} // Pass the auth function
         />
       )}
 
@@ -183,6 +255,7 @@ const EmployeeListPage = () => {
           isOpen={isViewModalOpen}
           onClose={handleCloseViewModal}
           employee={selectedEmployee}
+          getAuthHeaders={getAuthHeaders} // Pass the auth function
         />
       )}
     </div>

@@ -9,9 +9,7 @@ import {
   Mail,
   MapPin,
   Calendar,
-  Upload,
   AlertCircle,
-  Check,
 } from "lucide-react";
 
 const AddEmployeeModal = ({
@@ -24,9 +22,16 @@ const AddEmployeeModal = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  const [resumeFile, setResumeFile] = useState(null);
-  const [isFileUploading, setIsFileUploading] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+
+  // Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -44,14 +49,9 @@ const AddEmployeeModal = ({
           },
         };
       });
-
       setErrors({});
-      setResumeFile(null);
-      setUploadedFileName(
-        employeeData?.resume ? "Resume already uploaded" : ""
-      );
     }
-  }, [isOpen, setEmployeeData, employeeData?.resume]);
+  }, [isOpen, setEmployeeData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -87,38 +87,6 @@ const AddEmployeeModal = ({
         delete newErrors[`address.${name}`];
         return newErrors;
       });
-    }
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setResumeFile(file);
-      setUploadedFileName(file.name);
-
-      // In a real app, you'd upload the file to a server/cloud storage
-      // For this example, we'll store in localStorage
-      setIsFileUploading(true);
-
-      // Read the file as data URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const fileData = event.target.result; // This contains the file's binary data
-
-        // Store the file data temporarily in component state
-        setEmployeeData((prevData) => ({
-          ...(prevData || {}),
-          resumeFile: {
-            name: file.name,
-            type: file.type,
-            data: fileData,
-          },
-        }));
-
-        setIsFileUploading(false);
-      };
-
-      reader.readAsArrayBuffer(file); // Read as binary data
     }
   };
 
@@ -207,7 +175,7 @@ const AddEmployeeModal = ({
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Phone validation - simple validation for demo
+    // Phone validation
     if (
       employeeData.phoneNumber &&
       !/^\+?[\d\s-]{10,}$/.test(employeeData.phoneNumber)
@@ -247,59 +215,26 @@ const AddEmployeeModal = ({
 
   const handleSave = async () => {
     if (!validateEmployeeData()) {
-      return; // Stop if validation fails
+      return;
     }
 
     try {
       setIsSubmitting(true);
 
-      // Format employee data
       const formattedData = formatEmployeeData(employeeData);
 
-      // Determine API endpoint and method
       const apiEndpoint = isEditing
         ? `http://localhost:3000/api/employees/${employeeData.employeeId}`
         : "http://localhost:3000/api/employees";
       const apiMethod = isEditing ? axios.put : axios.post;
 
-      // Make the API request
-      const response = await apiMethod(apiEndpoint, formattedData);
+      const response = await apiMethod(
+        apiEndpoint,
+        formattedData,
+        getAuthHeaders()
+      );
 
-      // Handle success
       if ([200, 201].includes(response.status)) {
-        // If we have resume file data and an employee ID, store in localStorage
-        if (employeeData.resumeFile && formattedData.employeeId) {
-          try {
-            // Convert the ArrayBuffer to a Blob
-            const blob = new Blob([employeeData.resumeFile.data], {
-              type: employeeData.resumeFile.type,
-            });
-
-            // Store file metadata in localStorage
-            localStorage.setItem(
-              `resume_${formattedData.employeeId}`,
-              JSON.stringify({
-                name: employeeData.resumeFile.name,
-                type: employeeData.resumeFile.type,
-                size: blob.size,
-              })
-            );
-
-            // Store the actual file in localStorage as blob URL
-            const blobUrl = URL.createObjectURL(blob);
-            localStorage.setItem(
-              `resume_file_${formattedData.employeeId}`,
-              blobUrl
-            );
-
-            console.log(
-              `Resume file stored for employee ${formattedData.employeeId}`
-            );
-          } catch (err) {
-            console.error("Error storing resume in localStorage:", err);
-          }
-        }
-
         onSave();
         onClose();
       } else {
@@ -741,9 +676,21 @@ const AddEmployeeModal = ({
                         name="joiningDate"
                         value={
                           employeeData.joiningDate
-                            ? new Date(employeeData.joiningDate)
-                                .toISOString()
-                                .split("T")[0]
+                            ? (() => {
+                                try {
+                                  const date = new Date(
+                                    employeeData.joiningDate
+                                  );
+                                  if (isNaN(date.getTime())) {
+                                    return new Date()
+                                      .toISOString()
+                                      .split("T")[0];
+                                  }
+                                  return date.toISOString().split("T")[0];
+                                } catch (error) {
+                                  return new Date().toISOString().split("T")[0];
+                                }
+                              })()
                             : new Date().toISOString().split("T")[0]
                         }
                         onChange={handleChange}
@@ -751,58 +698,20 @@ const AddEmployeeModal = ({
                       />
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Additional Info */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex items-center p-3 border-b border-gray-100 bg-gray-50">
-                  <User className="h-4 w-4 text-indigo-500 mr-2" />
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Additional Info
-                  </h3>
-                </div>
-                <div className="p-4 space-y-4">
-                  {/* Resume Upload */}
+                  {/* Description */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Resume URL
+                      Description
                     </label>
-                    <div className="flex items-center">
-                      <label className="flex-1 cursor-pointer">
-                        <div
-                          className={`relative flex items-center justify-center border border-dashed ${
-                            resumeFile
-                              ? "border-green-300 bg-green-50"
-                              : "border-gray-300 bg-gray-50"
-                          } rounded-lg p-2 hover:bg-gray-100 transition-colors`}
-                        >
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            onChange={handleFileChange}
-                            className="sr-only"
-                          />
-                          <div className="text-center py-2">
-                            {isFileUploading ? (
-                              <div className="flex items-center justify-center space-x-2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-indigo-500"></div>
-                                <span className="text-sm text-gray-500">
-                                  Uploading...
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center">
-                                <Upload className="h-5 w-5 text-gray-400 mb-1" />
-                                <span className="text-xs text-gray-500">
-                                  Click to upload resume
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </label>
-                    </div>
+                    <textarea
+                      name="description"
+                      placeholder="Brief description about the employee"
+                      value={employeeData.description || ""}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
                   </div>
                 </div>
               </div>

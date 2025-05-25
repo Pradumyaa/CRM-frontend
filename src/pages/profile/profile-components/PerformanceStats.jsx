@@ -1,6 +1,71 @@
+import { useState, useEffect } from "react";
 import { CheckCircle, Award, Clock, Briefcase, TrendingUp, BarChart2 } from "lucide-react";
 
-const PerformanceStats = () => {
+const PerformanceStats = ({ employeeId }) => {
+  const [selectedPeriod, setSelectedPeriod] = useState("3months");
+  const [performanceData, setPerformanceData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // In a real application, this would be an API call to fetch performance data
+    // For now, we'll simulate with sample data
+    const fetchPerformanceData = async () => {
+      setLoading(true);
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Sample performance data with slight variations based on selected period
+      const multiplier = selectedPeriod === "3months" ? 1 : 
+                         selectedPeriod === "6months" ? 1.2 : 1.5;
+      
+      const data = {
+        completedTasks: Math.floor(27 * multiplier),
+        completedTasksChange: 14,
+        successRate: Math.min(98, Math.floor(92 * multiplier)),
+        successRateChange: 7,
+        responseTime: (2.3 / multiplier).toFixed(1),
+        responseTimeChange: 0.5,
+        activeProjects: Math.floor(5 * multiplier),
+        activeProjectsChange: 2,
+        chartData: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"].slice(0, selectedPeriod === "3months" ? 3 : 6),
+          tasksCompleted: [50, 70, 90, 80, 110, 95].slice(0, selectedPeriod === "3months" ? 3 : 6),
+          successRate: [70, 85, 100, 90, 105, 100].slice(0, selectedPeriod === "3months" ? 3 : 6),
+        }
+      };
+      
+      setPerformanceData(data);
+      setLoading(false);
+    };
+
+    fetchPerformanceData();
+  }, [selectedPeriod, employeeId]);
+
+  if (loading || !performanceData) {
+    return (
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mb-6 animate-pulse">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex justify-between items-center">
+            <div className="h-6 bg-gray-200 rounded w-48"></div>
+            <div className="h-8 bg-gray-200 rounded w-32"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-100 shadow-sm">
+              <div className="h-10 bg-gray-200 rounded w-full mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 pb-6">
+          <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 h-64"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mb-6">
       <div className="p-6 border-b border-gray-100">
@@ -9,10 +74,14 @@ const PerformanceStats = () => {
             <TrendingUp className="h-5 w-5 text-indigo-600 mr-2" />
             Performance Statistics
           </h3>
-          <select className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent bg-gray-50">
-            <option>Last 3 Months</option>
-            <option>Last 6 Months</option>
-            <option>This Year</option>
+          <select 
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent bg-gray-50"
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+          >
+            <option value="3months">Last 3 Months</option>
+            <option value="6months">Last 6 Months</option>
+            <option value="year">This Year</option>
           </select>
         </div>
       </div>
@@ -26,12 +95,12 @@ const PerformanceStats = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Completed Tasks</p>
-              <p className="text-xl font-bold text-gray-800">27</p>
+              <p className="text-xl font-bold text-gray-800">{performanceData.completedTasks}</p>
             </div>
           </div>
           <div className="flex items-center text-xs text-green-600">
-            <span className="font-medium">+14%</span>
-            <span className="ml-1">from last month</span>
+            <span className="font-medium">+{performanceData.completedTasksChange}%</span>
+            <span className="ml-1">from previous period</span>
           </div>
         </div>
 
@@ -42,12 +111,12 @@ const PerformanceStats = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Success Rate</p>
-              <p className="text-xl font-bold text-gray-800">92%</p>
+              <p className="text-xl font-bold text-gray-800">{performanceData.successRate}%</p>
             </div>
           </div>
           <div className="flex items-center text-xs text-green-600">
-            <span className="font-medium">+7%</span>
-            <span className="ml-1">from last month</span>
+            <span className="font-medium">+{performanceData.successRateChange}%</span>
+            <span className="ml-1">from previous period</span>
           </div>
         </div>
 
@@ -58,12 +127,12 @@ const PerformanceStats = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Avg. Response Time</p>
-              <p className="text-xl font-bold text-gray-800">2.3h</p>
+              <p className="text-xl font-bold text-gray-800">{performanceData.responseTime}h</p>
             </div>
           </div>
           <div className="flex items-center text-xs text-red-600">
-            <span className="font-medium">+0.5h</span>
-            <span className="ml-1">from last month</span>
+            <span className="font-medium">+{performanceData.responseTimeChange}h</span>
+            <span className="ml-1">from previous period</span>
           </div>
         </div>
 
@@ -74,12 +143,12 @@ const PerformanceStats = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Active Projects</p>
-              <p className="text-xl font-bold text-gray-800">5</p>
+              <p className="text-xl font-bold text-gray-800">{performanceData.activeProjects}</p>
             </div>
           </div>
           <div className="flex items-center text-xs text-green-600">
-            <span className="font-medium">+2</span>
-            <span className="ml-1">from last month</span>
+            <span className="font-medium">+{performanceData.activeProjectsChange}</span>
+            <span className="ml-1">from previous period</span>
           </div>
         </div>
       </div>
@@ -93,7 +162,7 @@ const PerformanceStats = () => {
             <h4 className="font-medium text-gray-700">Performance Trend</h4>
           </div>
           
-          {/* Simple chart placeholder */}
+          {/* Simple chart */}
           <div className="w-full h-full flex items-center justify-center">
             <div className="relative w-full pt-12">
               {/* Chart legend */}
@@ -128,52 +197,23 @@ const PerformanceStats = () => {
                   <div className="border-b border-gray-200 w-full h-0"></div>
                 </div>
                 
-                {/* Chart bars/data */}
+                {/* Chart bars/data - dynamically generated based on data */}
                 <div className="flex-1 ml-6 flex justify-around items-end">
-                  {/* January */}
-                  <div className="flex flex-col items-center gap-1 w-12">
-                    <div className="flex space-x-1">
-                      <div className="w-3 bg-indigo-500 rounded-t-sm" style={{height: '50px'}}></div>
-                      <div className="w-3 bg-green-500 rounded-t-sm" style={{height: '70px'}}></div>
+                  {performanceData.chartData.labels.map((month, index) => (
+                    <div key={month} className="flex flex-col items-center gap-1 w-12">
+                      <div className="flex space-x-1">
+                        <div 
+                          className="w-3 bg-indigo-500 rounded-t-sm" 
+                          style={{height: `${performanceData.chartData.tasksCompleted[index]}px`}}
+                        ></div>
+                        <div 
+                          className="w-3 bg-green-500 rounded-t-sm" 
+                          style={{height: `${performanceData.chartData.successRate[index]}px`}}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-400">{month}</span>
                     </div>
-                    <span className="text-xs text-gray-400">Jan</span>
-                  </div>
-                  
-                  {/* February */}
-                  <div className="flex flex-col items-center gap-1 w-12">
-                    <div className="flex space-x-1">
-                      <div className="w-3 bg-indigo-500 rounded-t-sm" style={{height: '70px'}}></div>
-                      <div className="w-3 bg-green-500 rounded-t-sm" style={{height: '85px'}}></div>
-                    </div>
-                    <span className="text-xs text-gray-400">Feb</span>
-                  </div>
-                  
-                  {/* March */}
-                  <div className="flex flex-col items-center gap-1 w-12">
-                    <div className="flex space-x-1">
-                      <div className="w-3 bg-indigo-500 rounded-t-sm" style={{height: '90px'}}></div>
-                      <div className="w-3 bg-green-500 rounded-t-sm" style={{height: '100px'}}></div>
-                    </div>
-                    <span className="text-xs text-gray-400">Mar</span>
-                  </div>
-                  
-                  {/* April */}
-                  <div className="flex flex-col items-center gap-1 w-12">
-                    <div className="flex space-x-1">
-                      <div className="w-3 bg-indigo-500 rounded-t-sm" style={{height: '80px'}}></div>
-                      <div className="w-3 bg-green-500 rounded-t-sm" style={{height: '90px'}}></div>
-                    </div>
-                    <span className="text-xs text-gray-400">Apr</span>
-                  </div>
-                  
-                  {/* May */}
-                  <div className="flex flex-col items-center gap-1 w-12">
-                    <div className="flex space-x-1">
-                      <div className="w-3 bg-indigo-500 rounded-t-sm" style={{height: '110px'}}></div>
-                      <div className="w-3 bg-green-500 rounded-t-sm" style={{height: '105px'}}></div>
-                    </div>
-                    <span className="text-xs text-gray-400">May</span>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>

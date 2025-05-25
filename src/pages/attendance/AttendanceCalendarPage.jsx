@@ -363,11 +363,18 @@ const AttendanceCalendarPage = () => {
   };
 
   // Handle day off request submit
-  const handleDayOffSubmit = async (day, employeeId) => {
+  const handleDayOffSubmit = async (day, reason, requestEmployeeId = null) => {
     if (!day) return;
 
     try {
-      await requestDayOff(day, employeeId);
+      // Use the provided employee ID or fall back to current employee ID
+      const empId = requestEmployeeId || employeeId;
+
+      if (!empId) {
+        throw new Error("Employee ID not found. Please log in again.");
+      }
+
+      await requestDayOff(day, reason, empId);
       fetchAttendanceData(); // Refresh data
       showNotification(
         "Day off request submitted successfully. Awaiting approval.",
@@ -385,7 +392,10 @@ const AttendanceCalendarPage = () => {
 
   // Admin function to approve day off request
   const handleDayOffApproval = async (date, empId, approved) => {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      showNotification("Only admins can approve/reject requests.", "error");
+      return;
+    }
 
     try {
       await calendarApi.processDayOffRequest(
@@ -405,16 +415,17 @@ const AttendanceCalendarPage = () => {
     } catch (error) {
       console.error("Error processing day off request:", error);
       showNotification(
-        `Failed to ${approved ? "approve" : "reject"} day off request`,
+        `Failed to ${approved ? "approve" : "reject"} day off request: ${
+          error.message
+        }`,
         "error"
       );
       throw error;
     }
   };
-
   // Request a day off
-  const requestDayOff = async (date, employeeId) => {
-    if (!employeeId) {
+  const requestDayOff = async (date, reason, requestEmployeeId) => {
+    if (!requestEmployeeId) {
       throw new Error("Employee ID not found. Please log in again.");
     }
 
@@ -443,17 +454,17 @@ const AttendanceCalendarPage = () => {
       );
     }
 
+    // Check if already requested
+    if (dayData && dayData.dayOffRequested) {
+      throw new Error("Day off request already submitted for this date.");
+    }
+
     // Call API to request day off
-    await calendarApi.requestDayOff(
-      employeeId,
-      dateStr,
-      reason || "Personal reasons"
-    );
+    await calendarApi.requestDayOff(requestEmployeeId, dateStr, reason);
 
     // Success
     return true;
   };
-
   // Start timer for clocked in time
   const startTimer = (startValue = 0) => {
     setTimer(startValue);

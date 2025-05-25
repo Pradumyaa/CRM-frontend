@@ -1,6 +1,7 @@
+// pages/dashboard/DashboardPage.jsx
 import React, { useState, useEffect } from "react";
-import { Card } from "../components/ui/card";
-import { Button } from "../components/ui/Button";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/Button";
 import {
   BarChart3,
   Users,
@@ -12,27 +13,44 @@ import {
   ListChecks,
   Clock,
   Briefcase,
+  UserCheck,
+  UserX,
+  AlertTriangle,
+  Coffee,
+  Award,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { employeeService } from "../../api/apiClient";
+import useDashboardStore from "../../store/useDashboardStore";
+import useSpacesStore from "../../store/useSpacesStore";
+
+// Components
 import DashboardGreeting from "./DashboardGreeting";
 import RecentActivity from "./RecentActivity";
 import MetricsOverview from "./MetricsOverview";
 import UpcomingEvents from "./UpcomingEvents";
 import TaskSummary from "./TaskSummary";
-import useSpacesStore from "@/store/useSpacesStore";
-import { Link } from "react-router-dom";
+import AdminDashboard from "./AdminDashboard";
+import EmployeeDashboard from "./EmployeeDashboard";
 
 const DashboardPage = () => {
-  const [employee, setEmployee] = useState(null);
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [metrics, setMetrics] = useState({
-    totalClients: 0,
-    activeDeals: 0,
-    completedTasks: 0,
-    conversionRate: 0,
-  });
+  const [employee, setEmployee] = useState(null);
 
-  // Get workspace data from zustand store
+  // Dashboard store
+  const {
+    adminMetrics,
+    employeeMetrics,
+    fetchAdminDashboard,
+    fetchEmployeeDashboard,
+    updateRecentActivities,
+    updateUpcomingEvents,
+  } = useDashboardStore();
+
+  // Workspace store for task data
   const { spaces } = useSpacesStore();
 
   // Calculate workspace metrics
@@ -44,15 +62,15 @@ const DashboardPage = () => {
     let completedTasks = 0;
 
     spaces.forEach((space) => {
-      totalFolders += space.folders.length;
+      totalFolders += space.folders?.length || 0;
 
-      space.folders.forEach((folder) => {
-        totalProjects += folder.projectLists.length;
+      space.folders?.forEach((folder) => {
+        totalProjects += folder.projectLists?.length || 0;
 
-        folder.projectLists.forEach((list) => {
-          totalTasks += list.tasks.length;
+        folder.projectLists?.forEach((list) => {
+          totalTasks += list.tasks?.length || 0;
 
-          list.tasks.forEach((task) => {
+          list.tasks?.forEach((task) => {
             if (task.completed) {
               completedTasks++;
             }
@@ -81,9 +99,9 @@ const DashboardPage = () => {
 
     // Get most recent tasks (limited to 4)
     spaces.forEach((space) => {
-      space.folders.forEach((folder) => {
-        folder.projectLists.forEach((list) => {
-          list.tasks.forEach((task) => {
+      space.folders?.forEach((folder) => {
+        folder.projectLists?.forEach((list) => {
+          list.tasks?.forEach((task) => {
             activities.push({
               id: id++,
               type: "Task",
@@ -99,7 +117,8 @@ const DashboardPage = () => {
       });
     });
 
-    // Sort by most recent and limit to 4
+    // Sort by most recent (we don't have actual timestamps yet, so this is simplified)
+    // and limit to 4
     return activities.slice(0, 4);
   }, [spaces]);
 
@@ -110,15 +129,15 @@ const DashboardPage = () => {
 
     // Find tasks with due dates
     spaces.forEach((space) => {
-      space.folders.forEach((folder) => {
-        folder.projectLists.forEach((list) => {
-          list.tasks.forEach((task) => {
+      space.folders?.forEach((folder) => {
+        folder.projectLists?.forEach((list) => {
+          list.tasks?.forEach((task) => {
             if (task.dueDate) {
               events.push({
                 id: id++,
                 title: task.name,
                 contact: `${list.name} (${space.name})`,
-                date: task.dueDate,
+                date: new Date(task.dueDate).toLocaleDateString(),
                 type: task.priority === "high" ? "deadline" : "meeting",
               });
             }
@@ -128,7 +147,9 @@ const DashboardPage = () => {
     });
 
     // Sort by due date and limit to 3
-    return events.slice(0, 3);
+    return events
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 3);
   }, [spaces]);
 
   // Calculate task data for TaskSummary
@@ -140,9 +161,9 @@ const DashboardPage = () => {
     const today = new Date();
 
     spaces.forEach((space) => {
-      space.folders.forEach((folder) => {
-        folder.projectLists.forEach((list) => {
-          list.tasks.forEach((task) => {
+      space.folders?.forEach((folder) => {
+        folder.projectLists?.forEach((list) => {
+          list.tasks?.forEach((task) => {
             if (task.completed) {
               completed++;
             } else if (task.dueDate) {
@@ -163,73 +184,22 @@ const DashboardPage = () => {
     return { completed, pending, overdue };
   }, [spaces]);
 
-  useEffect(() => {
-    const fetchEmployeeData = async () => {
-      try {
-        const employeeId = localStorage.getItem("employeeId");
-        if (!employeeId) {
-          // If no employee ID, just use demo data
-          setEmployee({
-            name: "Demo User",
-            position: "Project Manager",
-            images: [],
-          });
-          setLoading(false);
-          return;
-        }
-
-        try {
-          const response = await fetch(
-            `http://localhost:3000/api/employees/${employeeId}`
-          );
-          if (!response.ok) throw new Error("Failed to fetch employee data");
-
-          const data = await response.json();
-          setEmployee({
-            ...data.employee,
-            images: data.employee.images || [],
-          });
-        } catch (fetchError) {
-          console.log("Using demo data instead:", fetchError);
-          setEmployee({
-            name: "Demo User",
-            position: "Project Manager",
-            images: [],
-          });
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmployeeData();
-
-    // Set metrics based on workspace data
-    setMetrics({
-      totalClients: workspaceMetrics.totalProjects,
-      activeDeals:
-        workspaceMetrics.totalTasks - workspaceMetrics.completedTasks,
-      completedTasks: workspaceMetrics.completedTasks,
-      conversionRate: workspaceMetrics.taskCompletionRate,
-    });
-  }, [workspaceMetrics]);
-
   // Get tasks for TaskSummary
   const tasks = React.useMemo(() => {
     const allTasks = [];
 
     spaces.forEach((space) => {
-      space.folders.forEach((folder) => {
-        folder.projectLists.forEach((list) => {
-          list.tasks.forEach((task) => {
+      space.folders?.forEach((folder) => {
+        folder.projectLists?.forEach((list) => {
+          list.tasks?.forEach((task) => {
             if (!task.completed) {
               allTasks.push({
                 id: task.id,
                 title: task.name,
                 priority: task.priority || "medium",
-                dueDate: task.dueDate || "No date",
+                dueDate: task.dueDate
+                  ? new Date(task.dueDate).toLocaleDateString()
+                  : "No date",
                 spaceId: space.id,
                 folderId: folder.id,
                 listId: list.id,
@@ -249,14 +219,136 @@ const DashboardPage = () => {
       .slice(0, 4);
   }, [spaces]);
 
-  // Performance data for the chart
-  const performanceData = [
-    { name: "Jan", deals: 4, leads: 12 },
-    { name: "Feb", deals: 6, leads: 18 },
-    { name: "Mar", deals: 8, leads: 22 },
-    { name: "Apr", deals: 12, leads: 28 },
-    { name: "May", deals: 9, leads: 25 },
-    { name: "Jun", deals: 15, leads: 32 },
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        if (!user?.employeeId) {
+          setError("User information not available");
+          setLoading(false);
+          return;
+        }
+
+        // Fetch employee data
+        try {
+          const response = await employeeService.getEmployee(user.employeeId);
+          setEmployee(response.employee);
+        } catch (err) {
+          console.error("Error fetching employee data:", err);
+          // Fall back to user data from auth context
+          setEmployee(user);
+        }
+
+        // Fetch dashboard metrics based on role
+        if (isAdmin) {
+          await fetchAdminDashboard();
+        } else {
+          await fetchEmployeeDashboard(user.employeeId);
+        }
+
+        // Update store with activities and events
+        updateRecentActivities(recentActivities);
+        updateUpcomingEvents(upcomingEvents);
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+        console.error("Dashboard error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [
+    user,
+    isAdmin,
+    fetchAdminDashboard,
+    fetchEmployeeDashboard,
+    recentActivities,
+    upcomingEvents,
+    updateRecentActivities,
+    updateUpcomingEvents,
+  ]);
+
+  // Admin-specific metrics
+  const adminDashboardMetrics = [
+    {
+      title: "Total Employees",
+      value: adminMetrics.totalEmployees,
+      icon: <Users className="h-6 w-6 text-blue-500" />,
+      change: "+5.2%",
+      trend: "up",
+      background: "bg-blue-50",
+      border: "border-blue-100",
+    },
+    {
+      title: "Active Employees",
+      value: adminMetrics.activeEmployees,
+      icon: <UserCheck className="h-6 w-6 text-green-500" />,
+      change: "+3.1%",
+      trend: "up",
+      background: "bg-green-50",
+      border: "border-green-100",
+    },
+    {
+      title: "Inactive Employees",
+      value: adminMetrics.totalEmployees - adminMetrics.activeEmployees,
+      icon: <UserX className="h-6 w-6 text-red-500" />,
+      change: "-2.4%",
+      trend: "down",
+      background: "bg-red-50",
+      border: "border-red-100",
+    },
+    {
+      title: "Active Rate",
+      value: `${adminMetrics.activeRate}%`,
+      icon: <TrendingUp className="h-6 w-6 text-purple-500" />,
+      change: "+1.8%",
+      trend: "up",
+      background: "bg-purple-50",
+      border: "border-purple-100",
+    },
+  ];
+
+  // Employee-specific metrics
+  const employeeDashboardMetrics = [
+    {
+      title: "Days Worked",
+      value: employeeMetrics.totalDaysWorked,
+      icon: <Calendar className="h-6 w-6 text-blue-500" />,
+      change: "-",
+      trend: "neutral",
+      background: "bg-blue-50",
+      border: "border-blue-100",
+    },
+    {
+      title: "Days Off",
+      value: employeeMetrics.dayOff,
+      icon: <Coffee className="h-6 w-6 text-green-500" />,
+      change: "-",
+      trend: "neutral",
+      background: "bg-green-50",
+      border: "border-green-100",
+    },
+    {
+      title: "Late Clock-ins",
+      value: employeeMetrics.lateClockIn,
+      icon: <AlertTriangle className="h-6 w-6 text-amber-500" />,
+      change: "-",
+      trend: "neutral",
+      background: "bg-amber-50",
+      border: "border-amber-100",
+    },
+    {
+      title: "Overtime Hours",
+      value: employeeMetrics.overTime,
+      icon: <Award className="h-6 w-6 text-purple-500" />,
+      change: "-",
+      trend: "neutral",
+      background: "bg-purple-50",
+      border: "border-purple-100",
+    },
   ];
 
   return (
@@ -291,152 +383,40 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Main Dashboard Content */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Metrics Overview */}
-          <MetricsOverview metrics={metrics} loading={loading} />
-
-          {/* Workspace Summary */}
-          <Card className="p-6 rounded-xl shadow-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Workspace Overview
-              </h2>
-              <Link
-                to="/workspaces"
-                className="text-sm text-indigo-600 hover:text-indigo-800"
-              >
-                Manage Workspaces
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 border rounded-xl bg-blue-50 border-blue-100">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">Spaces</h3>
-                  <Briefcase className="h-6 w-6 text-blue-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-800">
-                  {workspaceMetrics.totalSpaces}
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-xl bg-green-50 border-green-100">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">Folders</h3>
-                  <FolderOpen className="h-6 w-6 text-green-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-800">
-                  {workspaceMetrics.totalFolders}
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-xl bg-purple-50 border-purple-100">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">
-                    Projects
-                  </h3>
-                  <ListChecks className="h-6 w-6 text-purple-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-800">
-                  {workspaceMetrics.totalProjects}
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-xl bg-amber-50 border-amber-100">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-gray-600">Tasks</h3>
-                  <Clock className="h-6 w-6 text-amber-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-800">
-                  {workspaceMetrics.totalTasks}
-                </p>
-              </div>
-            </div>
-
-            {/* Workspace Stats */}
-            <div className="mt-6 p-4 border rounded-xl bg-gray-50">
-              <div className="flex flex-col sm:flex-row justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-600">
-                  Task Completion
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {workspaceMetrics.completedTasks} of{" "}
-                  {workspaceMetrics.totalTasks} tasks completed
-                </p>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-indigo-600 h-2.5 rounded-full"
-                  style={{ width: `${workspaceMetrics.taskCompletionRate}%` }}
-                ></div>
-              </div>
-              <p className="mt-1 text-xs text-right text-gray-500">
-                {workspaceMetrics.taskCompletionRate}% complete
-              </p>
-            </div>
-          </Card>
-
-          {/* Task Summary */}
-          <TaskSummary taskData={taskData} tasks={tasks} />
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Employee Profile Card */}
-          {!loading && !error && employee && (
-            <Card className="p-6 rounded-xl shadow-md bg-white">
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  <img
-                    src={employee?.images[0] || "/default-profile.jpg"}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow"
-                  />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
-                <h2 className="mt-4 text-xl font-semibold text-gray-800">
-                  {employee?.name || "Unknown"}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {employee?.position || "Sales Representative"}
-                </p>
-
-                <div className="mt-5 w-full border-t pt-4">
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-gray-800">
-                        {workspaceMetrics.totalProjects}
-                      </p>
-                      <p className="text-xs text-gray-500">Active Projects</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-gray-800">
-                        {workspaceMetrics.taskCompletionRate}%
-                      </p>
-                      <p className="text-xs text-gray-500">Completion Rate</p>
-                    </div>
-                  </div>
-                </div>
-
-                <Link to="/profile">
-                  <Button className="mt-5 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg border border-gray-200">
-                    View Profile
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          )}
-
-          {/* Upcoming Events */}
-          <UpcomingEvents events={upcomingEvents} />
-
-          {/* Recent Activity */}
-          <RecentActivity activities={recentActivities} />
-        </div>
+      {/* Metrics Overview */}
+      <div className="mb-6">
+        <MetricsOverview
+          metrics={isAdmin ? adminDashboardMetrics : employeeDashboardMetrics}
+          loading={loading}
+        />
       </div>
+
+      {/* Role-based dashboard content */}
+      {isAdmin ? (
+        <AdminDashboard
+          loading={loading}
+          error={error}
+          adminMetrics={adminMetrics}
+          workspaceMetrics={workspaceMetrics}
+          recentActivities={recentActivities}
+          upcomingEvents={upcomingEvents}
+          taskData={taskData}
+          tasks={tasks}
+          employee={employee}
+        />
+      ) : (
+        <EmployeeDashboard
+          loading={loading}
+          error={error}
+          employeeMetrics={employeeMetrics}
+          workspaceMetrics={workspaceMetrics}
+          recentActivities={recentActivities}
+          upcomingEvents={upcomingEvents}
+          taskData={taskData}
+          tasks={tasks}
+          employee={employee}
+        />
+      )}
     </div>
   );
 };

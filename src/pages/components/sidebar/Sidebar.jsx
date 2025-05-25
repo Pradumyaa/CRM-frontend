@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+// pages/components/sidebar/Sidebar.jsx
+import { useState } from "react";
 import {
   MdKeyboardArrowRight,
   MdKeyboardArrowDown,
   MdMenu,
-} from "react-icons/md";
-import {
   MdSettings,
   MdLogout,
   MdDashboard,
@@ -17,73 +16,41 @@ import {
   MdWorkspaces,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../context/AuthContext";
 import logo from "../../../assets/GetMaxLogo.svg";
 
 const Sidebar = ({ selectedItem, onItemSelect }) => {
   const [openDropdown, setOpenDropdown] = useState("");
-  const [user, setUser] = useState({ name: "Guest", isAdmin: false });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const employeeId = localStorage.getItem("employeeId");
-      if (employeeId) {
-        try {
-          const response = await fetch(
-            `http://localhost:3000/api/employees/isAdminOrNot/${employeeId}`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch user data");
-          }
-          const data = await response.json();
-          setUser({
-            name: data.name || "Guest",
-            isAdmin: data.isAdmin || false,
-          });
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      }
-    };
-    fetchUserData();
-  }, []);
+  // Use authentication context
+  const { user, isAdmin, logout } = useAuth();
 
-  const navigationItems = [
+  // Build navigation items with admin items conditionally included
+  const baseItems = [
     { label: "Dashboard", icon: <MdDashboard size={18} />, key: "dashboard" },
     { label: "Profile", icon: <MdPerson size={18} />, key: "profile" },
-    // {
-    //   label: "Product",
-    //   icon: <MdShoppingBag size={18} />,
-    //   hasDropdown: true,
-    //   key: "product",
-    //   subItems: [
-    //     { label: "All Products", key: "allProducts" },
-    //     { label: "Categories", key: "categories" },
-    //     { label: "Orders", key: "orders" },
-    //   ],
-    // },
-    // { label: "Income", icon: <MdAttachMoney size={18} />, key: "income" },
-    ...(user.isAdmin
-      ? [
-          {
-            label: "Organisation",
-            icon: <MdBusinessCenter size={18} />,
-            hasDropdown: true,
-            key: "organisation",
-            subItems: [
-              { label: "Employee List", key: "employeeList" },
-              { label: "Activity Tracker", key: "activityTracker" },
-              { label: "Documents", key: "documents" },
-            ],
-          },
-        ]
-      : []),
     { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
-    // { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
-    // { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
+    { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
   ];
+
+  const adminItems = [
+    {
+      label: "Organisation",
+      icon: <MdBusinessCenter size={18} />,
+      hasDropdown: true,
+      key: "organisation",
+      subItems: [
+        { label: "Employee List", key: "employeeList" },
+        { label: "Activity Tracker", key: "activityTracker" },
+        { label: "Documents", key: "documents" },
+      ],
+    },
+    { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
+  ];
+  const navigationItems = [...baseItems, ...(isAdmin ? adminItems : [])];
 
   const handleItemClick = (item) => {
     if (item.hasDropdown) {
@@ -109,6 +76,11 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
 
   const handleMouseLeave = () => {
     setHoveredItem(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -144,6 +116,16 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
           </button>
         </div>
 
+        {/* User info section */}
+        {isSidebarOpen && (
+          <div className="px-4 py-3 border-b border-gray-200">
+            <p className="text-sm font-semibold">{user?.name || "User"}</p>
+            <p className="text-xs text-gray-500">
+              {isAdmin ? "Administrator" : "Employee"}
+            </p>
+          </div>
+        )}
+
         {/* Sidebar Content */}
         <div className="py-2 px-2 flex-1 overflow-y-auto overflow-x-hidden">
           <nav className="space-y-1">
@@ -152,6 +134,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                 {/* Main menu item */}
                 <div className="group relative">
                   <button
+                    id={item.key}
                     onClick={() => handleItemClick(item)}
                     onMouseEnter={() => handleMouseEnter(item)}
                     onMouseLeave={handleMouseLeave}
@@ -213,21 +196,21 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                     )}
                   </button>
 
-                  {/* Tooltip using portal to render outside the sidebar to prevent scrollbars */}
+                  {/* Tooltip for collapsed sidebar */}
                   {!isSidebarOpen &&
                     hoveredItem &&
                     hoveredItem.key === item.key && (
                       <div
                         style={{
                           position: "fixed",
-                          left: "50px", // Adjusted to be slightly to the right of the icon
+                          left: "50px",
                           top: (() => {
                             const element = document.getElementById(item.key);
                             if (element) {
                               const rect = element.getBoundingClientRect();
                               return `${
                                 rect.top + window.scrollY + rect.height / 2 - 10
-                              }px`; // Adjusted for better centering
+                              }px`;
                             }
                             return "0px";
                           })(),
@@ -308,11 +291,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
           >
             <div className="relative">
               <button
-                onClick={() => {
-                  localStorage.removeItem("employeeId");
-                  localStorage.removeItem("userData");
-                  navigate("/login");
-                }}
+                onClick={handleLogout}
                 onMouseEnter={() =>
                   handleMouseEnter({ key: "logout", label: "Logout" })
                 }
@@ -331,6 +310,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               {!isSidebarOpen &&
                 hoveredItem &&
                 hoveredItem.key === "logout" && (
+                  // pages/components/sidebar/Sidebar.jsx (continued)
                   <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
                     Logout
                     <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>

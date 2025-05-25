@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Filter,
   ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import { calendarApi } from "../../../utils/apiClient";
 import { formatDateToString } from "../../../utils/calendarStyles";
@@ -29,6 +30,7 @@ const AdminPanel = ({
   const [filterStatus, setFilterStatus] = useState("all");
   const [isExpanded, setIsExpanded] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [processingRequests, setProcessingRequests] = useState(new Set());
 
   // Fetch pending day off requests
   const fetchPendingRequests = async () => {
@@ -38,11 +40,21 @@ const AdminPanel = ({
       setIsLoading(true);
       setError("");
 
+      console.log("Fetching pending requests for admin:", employeeId);
       const response = await calendarApi.getPendingRequests(employeeId);
-      setPendingRequests(response.pendingRequests || []);
+
+      console.log("API Response:", response);
+
+      // Handle different response formats
+      const requests = response.requests || response.pendingRequests || [];
+      setPendingRequests(requests);
+
+      if (requests.length === 0) {
+        console.log("No pending requests found");
+      }
     } catch (error) {
       console.error("Error fetching pending day off requests:", error);
-      setError("Failed to fetch pending requests");
+      setError(`Failed to fetch pending requests: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -69,40 +81,108 @@ const AdminPanel = ({
   };
 
   // Handle request approval
-  const handleApproveRequest = async (date, employeeId) => {
+  const handleApproveRequest = async (request) => {
+    const requestKey = `${request.employeeId}-${request.date}`;
+
+    if (processingRequests.has(requestKey)) return;
+
     try {
-      await onApproveRequest(date, employeeId, true);
+      setProcessingRequests((prev) => new Set(prev).add(requestKey));
+      setError("");
+
+      console.log("Approving request:", request);
+
+      // Call the API to approve the request
+      await calendarApi.processDayOffRequest(
+        employeeId, // Admin ID
+        request.employeeId, // Employee ID
+        request.date, // Date
+        true // Approved
+      );
+
       // Remove approved request from the list
-      setPendingRequests(
-        pendingRequests.filter(
-          (req) => !(req.date === date && req.employeeId === employeeId)
+      setPendingRequests((prevRequests) =>
+        prevRequests.filter(
+          (req) =>
+            !(
+              req.employeeId === request.employeeId && req.date === request.date
+            )
         )
       );
 
+      // Call parent callback if provided
+      if (onApproveRequest) {
+        await onApproveRequest(request.date, request.employeeId, true);
+      }
+
       // Refresh attendance data
-      if (refreshData) refreshData();
+      if (refreshData) {
+        refreshData();
+      }
+
+      console.log("Request approved successfully");
     } catch (error) {
       console.error("Error approving request:", error);
-      setError("Failed to approve request");
+      setError(`Failed to approve request: ${error.message}`);
+    } finally {
+      setProcessingRequests((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestKey);
+        return newSet;
+      });
     }
   };
 
   // Handle request rejection
-  const handleRejectRequest = async (date, employeeId) => {
+  const handleRejectRequest = async (request) => {
+    const requestKey = `${request.employeeId}-${request.date}`;
+
+    if (processingRequests.has(requestKey)) return;
+
     try {
-      await onRejectRequest(date, employeeId, false);
+      setProcessingRequests((prev) => new Set(prev).add(requestKey));
+      setError("");
+
+      console.log("Rejecting request:", request);
+
+      // Call the API to reject the request
+      await calendarApi.processDayOffRequest(
+        employeeId, // Admin ID
+        request.employeeId, // Employee ID
+        request.date, // Date
+        false // Rejected
+      );
+
       // Remove rejected request from the list
-      setPendingRequests(
-        pendingRequests.filter(
-          (req) => !(req.date === date && req.employeeId === employeeId)
+      setPendingRequests((prevRequests) =>
+        prevRequests.filter(
+          (req) =>
+            !(
+              req.employeeId === request.employeeId && req.date === request.date
+            )
         )
       );
 
+      // Call parent callback if provided
+      if (onRejectRequest) {
+        await onRejectRequest(request.date, request.employeeId, false);
+      }
+
       // Refresh attendance data
-      if (refreshData) refreshData();
+      if (refreshData) {
+        refreshData();
+      }
+
+      console.log("Request rejected successfully");
     } catch (error) {
       console.error("Error rejecting request:", error);
-      setError("Failed to reject request");
+      setError(`Failed to reject request: ${error.message}`);
+    } finally {
+      setProcessingRequests((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestKey);
+        return newSet;
+      });
     }
   };
 
@@ -205,8 +285,8 @@ const AdminPanel = ({
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm flex items-center">
-              <X size={16} className="mr-2" />
-              {error}
+              <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
@@ -248,83 +328,88 @@ const AdminPanel = ({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredRequests.map((request) => (
-                        <tr
-                          key={`${request.employeeId}-${request.date}`}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
-                                <User className="h-4 w-4 text-blue-600" />
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {request.employeeName}
+                      {filteredRequests.map((request) => {
+                        const requestKey = `${request.employeeId}-${request.date}`;
+                        const isProcessing = processingRequests.has(requestKey);
+
+                        return (
+                          <tr
+                            key={requestKey}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
+                                  <User className="h-4 w-4 text-blue-600" />
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                  {request.employeeId}
+                                <div className="ml-3">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {request.employeeName}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {request.employeeId}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-900">
-                                {new Date(request.date).toLocaleDateString(
-                                  undefined,
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(request.date).toLocaleDateString(
-                                  undefined,
-                                  {
-                                    weekday: "short",
-                                  }
-                                )}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                            <span className="inline-block max-w-xs truncate">
-                              {request.reason || "No reason provided"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() =>
-                                  handleApproveRequest(
-                                    request.date,
-                                    request.employeeId
-                                  )
-                                }
-                                className="px-2 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded text-xs hover:from-green-600 hover:to-green-700 transition-colors flex items-center shadow-sm"
-                              >
-                                <Check size={12} className="mr-1" />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleRejectRequest(
-                                    request.date,
-                                    request.employeeId
-                                  )
-                                }
-                                className="px-2 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded text-xs hover:from-red-600 hover:to-red-700 transition-colors flex items-center shadow-sm"
-                              >
-                                <X size={12} className="mr-1" />
-                                Reject
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-gray-900">
+                                  {new Date(request.date).toLocaleDateString(
+                                    undefined,
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(request.date).toLocaleDateString(
+                                    undefined,
+                                    {
+                                      weekday: "short",
+                                    }
+                                  )}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 max-w-xs">
+                              <div className="truncate" title={request.reason}>
+                                {request.reason || "No reason provided"}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleApproveRequest(request)}
+                                  disabled={isProcessing}
+                                  className={`px-2 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded text-xs hover:from-green-600 hover:to-green-700 transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                  {isProcessing ? (
+                                    <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full mr-1"></div>
+                                  ) : (
+                                    <Check size={12} className="mr-1" />
+                                  )}
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleRejectRequest(request)}
+                                  disabled={isProcessing}
+                                  className={`px-2 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded text-xs hover:from-red-600 hover:to-red-700 transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                  {isProcessing ? (
+                                    <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full mr-1"></div>
+                                  ) : (
+                                    <X size={12} className="mr-1" />
+                                  )}
+                                  Reject
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

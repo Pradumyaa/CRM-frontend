@@ -22,33 +22,43 @@ const DayOffRequestModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate inputs
-    if (!date) {
-      setError("Please select a date");
-      return;
-    }
-    
+
+  const handleSubmit = async () => {
+    if (isLoading) return;
+
     try {
       setIsLoading(true);
       setError("");
-      
-      const employeeId = localStorage.getItem("employeeId");
-      if (!employeeId) {
-        throw new Error("Employee ID not found");
+
+      // Require reason for day off request
+      if (!reason.trim()) {
+        setError("Please provide a reason for your day off request");
+        setIsLoading(false);
+        return;
       }
-      
-      // Call API to request day off
-      await calendarApi.requestDayOff(employeeId, date, reason);
-      
-      // Close modal and refresh data
-      onSubmit();
-      resetForm();
+
+      // Get current employee ID from localStorage or props
+      const currentEmployeeId = localStorage.getItem("employeeId");
+
+      if (!currentEmployeeId) {
+        setError("Employee ID not found. Please log in again.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Submit the request with the current employee's ID
+      await onSubmit(selectedDay, reason, currentEmployeeId);
+
+      // Show success message
+      setShowSuccess(true);
+      setReason("");
+
+      // Close after delay
+      setTimeout(() => {
+        handleCloseModal();
+      }, 2000);
     } catch (error) {
-      console.error("Error requesting day off:", error);
-      setError(error.message || "Failed to submit request. Please try again.");
+      setError(error.message || "Failed to submit request");
     } finally {
       setIsLoading(false);
     }
@@ -73,19 +83,24 @@ const DayOffRequestModal = ({ isOpen, onClose, onSubmit }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Request Day Off</h2>
-          <button 
+          <h2 className="text-xl font-semibold text-gray-800">
+            Request Day Off
+          </h2>
+          <button
             onClick={handleClose}
             className="text-gray-500 hover:text-gray-700 focus:outline-none"
           >
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4">
             <div className="mb-4">
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Date <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -97,15 +112,18 @@ const DayOffRequestModal = ({ isOpen, onClose, onSubmit }) => {
                   id="date"
                   value={date}
                   onChange={handleDateChange}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date().toISOString().split("T")[0]}
                   className="pl-10 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
             </div>
-            
+
             <div className="mb-4">
-              <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="reason"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Reason
               </label>
               <textarea
@@ -117,14 +135,14 @@ const DayOffRequestModal = ({ isOpen, onClose, onSubmit }) => {
                 rows={4}
               />
             </div>
-            
+
             {error && (
               <div className="mb-4 p-2 bg-red-100 text-red-700 rounded-md text-sm">
                 {error}
               </div>
             )}
           </div>
-          
+
           <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
             <button
               type="button"

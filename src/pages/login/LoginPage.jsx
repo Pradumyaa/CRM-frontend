@@ -1,6 +1,7 @@
+// pages/login/LoginPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Footer from "../components/Footer.jsx";
+import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
   const [employeeId, setEmployeeId] = useState("");
@@ -9,16 +10,24 @@ const LoginPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { login, user } = useAuth();
   const navigate = useNavigate();
 
+  // If already logged in, redirect to dashboard
   useEffect(() => {
-    const savedEmployeeId = localStorage.getItem("employeeId");
-    if (savedEmployeeId) {
-      navigate("/", { state: { selectedItem: "profile" } });
+    if (user) {
+      navigate("/");
     } else {
+      // Check for remembered employee ID
+      const rememberedId = localStorage.getItem("rememberedEmployeeId");
+      if (rememberedId) {
+        setEmployeeId(rememberedId);
+        setRememberMe(true);
+      }
       setIsLoading(false);
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,27 +35,17 @@ const LoginPage = () => {
     setErrorMessage("");
 
     try {
-      const response = await fetch(
-        "http://localhost:3000/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId, password }),
-        }
-      );
+      // Call the login function from AuthContext
+      await login(employeeId, password, rememberMe);
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Login failed");
-
-      localStorage.setItem("employeeId", data.employee.employeeId);
-      localStorage.setItem("token", data.token);
-
-      console.log("Login successful!");
-
-      // Reload the page after successful login
-      window.location.href = "/"; // This will cause a full page reload
+      // Redirect will happen automatically through the useEffect
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(
+        error.message ||
+          "Login failed. Please check your credentials and try again."
+      );
+      console.error("Login error:", error);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -59,6 +58,7 @@ const LoginPage = () => {
     );
   }
 
+  // Your existing login page UI
   return (
     <div className="flex justify-between min-h-screen bg-gray-200">
       <div className="flex-grow flex items-center justify-center mb-60">
@@ -180,8 +180,6 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

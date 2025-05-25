@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { X, Upload, CheckCircle, AlertCircle, FileText, Clock, Calendar, User, Eye } from "lucide-react";
-
+import {
+  X,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Clock,
+  Calendar,
+  User,
+  Eye,
+} from "lucide-react";
+import documentService from "../../../../services/DocumentService";
 const DocumentUploadModal = ({
   isOpen,
   onClose,
@@ -67,7 +77,7 @@ const DocumentUploadModal = ({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       setUploadError("Please select a file to upload");
       return;
@@ -75,44 +85,33 @@ const DocumentUploadModal = ({
 
     setIsUploading(true);
 
-    // Create a file reader to read the file and store in localStorage
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        // Store file metadata in localStorage
-        const fileData = {
-          name: selectedFile.name,
-          type: selectedFile.type,
-          size: selectedFile.size,
-          date: new Date().toISOString(),
-          dataUrl: event.target.result,
-        };
+    try {
+      // Upload the file using our document service
+      const employeeId = employee.employeeId || employee._id;
+      await documentService.uploadDocument(
+        selectedFile,
+        employeeId,
+        documentType
+      );
 
-        // Save to localStorage
-        localStorage.setItem(
-          `document_${documentType}_${employee.employeeId || employee._id}`,
-          JSON.stringify(fileData)
-        );
+      // Call the onSave callback to update the state in parent component with file info
+      onSave(employeeId, documentType, {
+        file: selectedFile,
+      });
 
-        // Call the onSave callback to update the state in parent component
-        onSave(employee.employeeId || employee._id, documentType, fileData);
+      // Show success message
+      setUploadSuccess(true);
 
-        // Show success message
-        setUploadSuccess(true);
-        setIsUploading(false);
-
-        // Close modal after delay
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } catch (error) {
-        console.error("Error saving document:", error);
-        setUploadError("Error saving document. Please try again.");
-        setIsUploading(false);
-      }
-    };
-
-    reader.readAsDataURL(selectedFile);
+      // Close modal after delay
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      setUploadError("Error uploading document. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Get document color based on document type
@@ -122,6 +121,8 @@ const DocumentUploadModal = ({
       payroll: "orange",
       performance: "purple",
       resume: "green",
+      identification: "red",
+      certifications: "indigo",
     };
     return colors[docTypeId] || "gray";
   };
@@ -134,7 +135,9 @@ const DocumentUploadModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl p-0 w-full max-w-md m-4 overflow-hidden">
         {/* Header */}
-        <div className={`bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex justify-between items-center`}>
+        <div
+          className={`bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex justify-between items-center`}
+        >
           <h3 className="text-xl font-semibold text-white flex items-center">
             <FileText className="h-5 w-5 mr-2" />
             Upload {docTypeObj.label || "Document"}
@@ -163,14 +166,18 @@ const DocumentUploadModal = ({
             <>
               {/* Employee Info */}
               <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-1 font-medium">Employee Details</p>
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Employee Details
+                </p>
                 <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium mr-3">
                     {employee?.name?.charAt(0).toUpperCase() || "?"}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-gray-900">{employee?.name}</p>
+                      <p className="font-medium text-gray-900">
+                        {employee?.name}
+                      </p>
                       <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
                         ID: {employee?.employeeId || employee?._id}
                       </span>
@@ -185,14 +192,20 @@ const DocumentUploadModal = ({
 
               {/* Document Type Info */}
               <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-1 font-medium">Document Type</p>
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Document Type
+                </p>
                 <div className="flex items-center p-3 rounded-lg bg-indigo-50 border border-indigo-200">
                   <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mr-3">
                     <FileText size={18} />
                   </div>
                   <div>
-                    <p className="font-medium text-indigo-700">{docTypeObj.label || "Document"}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{docTypeObj.description || "Upload file"}</p>
+                    <p className="font-medium text-indigo-700">
+                      {docTypeObj.label || "Document"}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {docTypeObj.description || "Upload file"}
+                    </p>
                   </div>
                   {docTypeObj.required && (
                     <span className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
@@ -204,7 +217,9 @@ const DocumentUploadModal = ({
 
               {/* Upload Area */}
               <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-1 font-medium">Upload Document</p>
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Upload Document
+                </p>
                 <div
                   className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-colors ${
                     selectedFile
@@ -228,9 +243,8 @@ const DocumentUploadModal = ({
                         {selectedFile.name}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {
-                          selectedFile.type.includes('pdf') ? 'PDF' : 'DOCX'
-                        }
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB •{" "}
+                        {selectedFile.type.includes("pdf") ? "PDF" : "DOCX"}
                       </p>
                       <div className="flex mt-3">
                         <button
@@ -238,7 +252,7 @@ const DocumentUploadModal = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             if (preview) {
-                              window.open(preview, '_blank');
+                              window.open(preview, "_blank");
                             }
                           }}
                           disabled={!preview}
@@ -290,7 +304,8 @@ const DocumentUploadModal = ({
                   <span>Time: {new Date().toLocaleTimeString()}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  This document will be attached to {employee?.name}'s profile and will be available for view and download.
+                  This document will be attached to {employee?.name}'s profile
+                  and will be available for view and download.
                 </p>
               </div>
 
