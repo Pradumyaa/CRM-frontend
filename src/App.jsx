@@ -1,5 +1,4 @@
 // App.jsx
-import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,93 +6,150 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import PublicLayout from "./pages/public/layouts/PublicLayout.jsx";
 
-// Import your existing components
-import Sidebar from "./pages/components/sidebar/Sidebar.jsx";
+// Public Pages
+import LandingPage from "./pages/public/LandingPage.jsx";
+import FeaturesPage from "./pages/public/FeaturesPage.jsx";
+import SupportPage from "./pages/public/SupportPage.jsx";
+import ProductsPage from "./pages/public/ProductsPage.jsx";
+import ContactPage from "./pages/public/ContactPage.jsx";
+import AboutPage from "./pages/public/AboutPage.jsx";
 import LoginPage from "./pages/login/LoginPage.jsx";
-import AttendanceCalendarPage from "./pages/attendance/AttendanceCalendarPage.jsx";
-import DashboardPage from "./pages/dashboard/DashboardPage.jsx";
-import EmployeeListPage from "./pages/organisation/employeeList/EmployeeListPage.jsx";
-import DocumentsPage from "./pages/organisation/documents/DocumentsPage.jsx";
-import ActivityPage from "./pages/organisation/activityTracker/ActivityPage.jsx";
-import IncomePage from "./pages/income/IncomePage.jsx";
-import ProfilePage from "./pages/profile/ProfilePage.jsx";
-import AllProductsContent from "./pages/product/AllProductsContent.jsx";
-import CategoriesContent from "./pages/product/CategoriesContent.jsx";
-import OrdersContent from "./pages/product/OrdersContent.jsx";
-import ChatPage from "./pages/chat/ChatPage.jsx";
-import SpacesPage from "./pages/workspaces/WorkspacePage.jsx";
 
-// Protected route wrapper
-function ProtectedRoute({ children }) {
+// Import CRM App
+import CRMApp from "./apps/CMRApp.jsx";
+
+// Protected route wrapper for CRM
+function ProtectedCRMRoute({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#5932EA] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading BET Tool...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;
 }
 
-// Main App Layout with sidebar
-function HomeLayout() {
-  const [selectedItem, setSelectedItem] = useState("dashboard");
-
-  const contentMap = {
-    dashboard: <DashboardPage />,
-    employeeList: <EmployeeListPage />,
-    activityTracker: <ActivityPage />,
-    documents: <DocumentsPage />,
-    help: <AttendanceCalendarPage />,
-    income: <IncomePage />,
-    profile: <ProfilePage />,
-    allProducts: <AllProductsContent />,
-    categories: <CategoriesContent />,
-    orders: <OrdersContent />,
-    chat: <ChatPage />,
-    spaces: <SpacesPage />,
-  };
-
-  return (
-    <div className="flex h-screen">
-      <Sidebar selectedItem={selectedItem} onItemSelect={setSelectedItem} />
-      <div className="flex-1 min-h-screen overflow-auto p-6">
-        {contentMap[selectedItem] || (
-          <div className="p-8">Content for {selectedItem}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Main App component with routes
+// Main App Routes
 function AppRoutes() {
   const { user } = useAuth();
 
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      {/* Public Routes with Layout */}
       <Route
-        path="/*"
+        path="/"
         element={
-          <ProtectedRoute>
-            <HomeLayout />
-          </ProtectedRoute>
+          <PublicLayout currentPage="/">
+            <LandingPage />
+          </PublicLayout>
         }
       />
+
+      <Route
+        path="/features"
+        element={
+          <PublicLayout currentPage="/features">
+            <FeaturesPage />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/about"
+        element={
+          <PublicLayout currentPage="/about">
+            <AboutPage />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/support"
+        element={
+          <PublicLayout currentPage="/support">
+            <SupportPage />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/products"
+        element={
+          <PublicLayout currentPage="/products">
+            <ProductsPage />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/contact"
+        element={
+          <PublicLayout currentPage="/contact">
+            <ContactPage />
+          </PublicLayout>
+        }
+      />
+
+      {/* Login Route */}
+      <Route
+        path="/login"
+        element={
+          user ? <Navigate to="/crm/dashboard" replace /> : <LoginPage />
+        }
+      />
+
+      {/* CRM Application - Protected */}
+      <Route
+        path="/crm/*"
+        element={
+          <ProtectedCRMRoute>
+            <CRMApp />
+          </ProtectedCRMRoute>
+        }
+      />
+
+      {/* Legacy Route Redirects */}
+      <Route
+        path="/dashboard"
+        element={<Navigate to="/crm/dashboard" replace />}
+      />
+      <Route path="/profile" element={<Navigate to="/crm/profile" replace />} />
+      <Route
+        path="/attendance"
+        element={<Navigate to="/crm/attendance" replace />}
+      />
+      <Route path="/chat" element={<Navigate to="/crm/chat" replace />} />
+      <Route
+        path="/organisation/*"
+        element={<Navigate to="/crm/organisation/employees" replace />}
+      />
+      <Route path="/spaces" element={<Navigate to="/crm/spaces" replace />} />
+      <Route
+        path="/products/*"
+        element={<Navigate to="/crm/products" replace />}
+      />
+      <Route path="/income" element={<Navigate to="/crm/income" replace />} />
+
+      {/* Catch-all - Redirect to Landing Page */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
-// Main App component with AuthProvider
+// Main App Component
 function App() {
   return (
     <Router>

@@ -10,8 +10,8 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import SearchBar from "@/pages/components/SearchBar";
-import Pagination from "@/pages/components/Pagination";
+import SearchBar from "../../components/SearchBar";
+import Pagination from "../../components/Pagination";
 import DocumentsTable from "./components/DocumentsTable";
 import DocumentStatsCards from "./components/DocumentStatsCards";
 import DocumentUploadModal from "./components/DocumentUploadModal";

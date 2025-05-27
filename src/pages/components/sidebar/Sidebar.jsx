@@ -1,5 +1,5 @@
 // pages/components/sidebar/Sidebar.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   MdKeyboardArrowRight,
   MdKeyboardArrowDown,
@@ -15,25 +15,46 @@ import {
   MdChat,
   MdWorkspaces,
 } from "react-icons/md";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import logo from "../../../assets/GetMaxLogo.svg";
 
-const Sidebar = ({ selectedItem, onItemSelect }) => {
+const Sidebar = () => {
   const [openDropdown, setOpenDropdown] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [hoveredItem, setHoveredItem] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Use authentication context
   const { user, isAdmin, logout } = useAuth();
 
   // Build navigation items with admin items conditionally included
   const baseItems = [
-    { label: "Dashboard", icon: <MdDashboard size={18} />, key: "dashboard" },
-    { label: "Profile", icon: <MdPerson size={18} />, key: "profile" },
-    { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
-    { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
+    {
+      label: "Dashboard",
+      icon: <MdDashboard size={18} />,
+      key: "dashboard",
+      path: "/dashboard",
+    },
+    {
+      label: "Profile",
+      icon: <MdPerson size={18} />,
+      key: "profile",
+      path: "/profile",
+    },
+    {
+      label: "Attendance",
+      icon: <MdDateRange size={18} />,
+      key: "attendance",
+      path: "/attendance",
+    },
+    {
+      label: "Chat",
+      icon: <MdChat size={18} />,
+      key: "chat",
+      path: "/chat",
+    },
   ];
 
   const adminItems = [
@@ -43,31 +64,87 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
       hasDropdown: true,
       key: "organisation",
       subItems: [
-        { label: "Employee List", key: "employeeList" },
-        { label: "Activity Tracker", key: "activityTracker" },
-        { label: "Documents", key: "documents" },
+        {
+          label: "Employee List",
+          key: "employeeList",
+          path: "/organisation/employees",
+        },
+        {
+          label: "Activity Tracker",
+          key: "activityTracker",
+          path: "/organisation/activity",
+        },
+        {
+          label: "Documents",
+          key: "documents",
+          path: "/organisation/documents",
+        },
       ],
     },
-    { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
+    {
+      label: "Spaces",
+      icon: <MdWorkspaces size={18} />,
+      key: "spaces",
+      path: "/spaces",
+    },
   ];
+
   const navigationItems = [...baseItems, ...(isAdmin ? adminItems : [])];
+
+  // Get current selected item based on pathname
+  const getCurrentSelectedItem = () => {
+    const pathname = location.pathname;
+
+    // Check direct matches first
+    for (const item of navigationItems) {
+      if (item.path === pathname) {
+        return item.key;
+      }
+
+      // Check dropdown items
+      if (item.hasDropdown && item.subItems) {
+        for (const subItem of item.subItems) {
+          if (subItem.path === pathname) {
+            return subItem.key;
+          }
+        }
+      }
+    }
+
+    return "dashboard"; // default
+  };
+
+  const selectedItem = getCurrentSelectedItem();
+
+  // Auto-open dropdown if a sub-item is selected
+  useEffect(() => {
+    const pathname = location.pathname;
+
+    for (const item of navigationItems) {
+      if (item.hasDropdown && item.subItems) {
+        const hasSelectedSubItem = item.subItems.some(
+          (subItem) => subItem.path === pathname
+        );
+        if (hasSelectedSubItem) {
+          setOpenDropdown(item.label);
+          break;
+        }
+      }
+    }
+  }, [location.pathname, navigationItems]);
 
   const handleItemClick = (item) => {
     if (item.hasDropdown) {
       setOpenDropdown(openDropdown === item.label ? "" : item.label);
     } else {
       setOpenDropdown("");
-      if (onItemSelect) {
-        onItemSelect(item.key);
-      }
+      navigate(item.path);
     }
   };
 
-  const handleSubItemClick = (parentLabel, subItemKey) => {
+  const handleSubItemClick = (parentLabel, subItem) => {
     setOpenDropdown(parentLabel);
-    if (onItemSelect) {
-      onItemSelect(subItemKey);
-    }
+    navigate(subItem.path);
   };
 
   const handleMouseEnter = (item) => {
@@ -81,6 +158,19 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  // Check if current path matches item or its subitems
+  const isItemActive = (item) => {
+    if (item.path === location.pathname) return true;
+
+    if (item.hasDropdown && item.subItems) {
+      return item.subItems.some(
+        (subItem) => subItem.path === location.pathname
+      );
+    }
+
+    return false;
   };
 
   return (
@@ -139,7 +229,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                     onMouseEnter={() => handleMouseEnter(item)}
                     onMouseLeave={handleMouseLeave}
                     className={`w-full flex justify-between items-center gap-2 py-2 px-2 rounded-md transition-all duration-50 ${
-                      selectedItem === item.key || openDropdown === item.label
+                      isItemActive(item) || openDropdown === item.label
                         ? "bg-[#5932EA] text-white hover:bg-white hover:text-[#5932EA]"
                         : "text-[#9197b3] hover:bg-[#F6F4FF] hover:text-[#5932EA] group-hover:bg-[#F6F4FF] group-hover:text-[#5932EA]"
                     }`}
@@ -151,8 +241,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                     >
                       <div
                         className={`transition-colors duration-50 ${
-                          selectedItem === item.key ||
-                          openDropdown === item.label
+                          isItemActive(item) || openDropdown === item.label
                             ? "text-white group-hover:text-[#5932EA]"
                             : "text-[#5932EA]"
                         }`}
@@ -175,8 +264,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                           <MdKeyboardArrowDown
                             size={16}
                             className={`transition-colors duration-50 ${
-                              selectedItem === item.key ||
-                              openDropdown === item.label
+                              isItemActive(item) || openDropdown === item.label
                                 ? "text-white group-hover:text-[#5932EA]"
                                 : "text-[#5932EA]"
                             }`}
@@ -185,8 +273,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                           <MdKeyboardArrowRight
                             size={16}
                             className={`transition-colors duration-50 ${
-                              selectedItem === item.key ||
-                              openDropdown === item.label
+                              isItemActive(item) || openDropdown === item.label
                                 ? "text-white group-hover:text-[#5932EA]"
                                 : "text-[#5932EA]"
                             }`}
@@ -237,10 +324,10 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
 
                           <button
                             onClick={() =>
-                              handleSubItemClick(item.label, subItem.key)
+                              handleSubItemClick(item.label, subItem)
                             }
                             className={`w-full flex justify-start items-center px-3 py-2 rounded-md text-sm transition-all duration-200 hover:bg-slate-300 ${
-                              selectedItem === subItem.key
+                              location.pathname === subItem.path
                                 ? "bg-[#F6F4FF] text-[#5932EA] font-medium shadow-sm"
                                 : "text-[#9197b3] hover:text-[#5932EA]"
                             }`}
@@ -252,7 +339,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                               {/* Visual indicator for selection */}
                               <div
                                 className={`w-2 h-2 rounded-full mr-2 ${
-                                  selectedItem === subItem.key
+                                  location.pathname === subItem.path
                                     ? "bg-[#5932EA]"
                                     : "border border-gray-300"
                                 }`}
@@ -260,7 +347,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
 
                               <span
                                 className={`${
-                                  selectedItem === subItem.key
+                                  location.pathname === subItem.path
                                     ? "text-[#5932EA]"
                                     : "text-gray-600"
                                 }`}
@@ -310,7 +397,6 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               {!isSidebarOpen &&
                 hoveredItem &&
                 hoveredItem.key === "logout" && (
-                  // pages/components/sidebar/Sidebar.jsx (continued)
                   <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
                     Logout
                     <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>

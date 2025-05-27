@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Plus, BriefcaseBusiness } from "lucide-react";
 import axios from "axios";
-import SearchBar from "@/pages/components/SearchBar.jsx";
+import SearchBar from "../../components/SearchBar.jsx";
 import EmployeeTable from "./employee/EmployeeTable.jsx";
 import AddEmployeeModal from "./employee/AddEmployeeModal.jsx";
 import ViewEmployeeModal from "./employee/ViewEmployeeModal.jsx";
