@@ -1,17 +1,20 @@
-// api/projectListService.js
-import apiClient from './apiClient';
+// api/projectListService.js - Complete project list service
+import apiClient from "./apiClient.js";
+
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app";
 
 export const projectListService = {
   // Get all project lists for a folder
   getProjectLists: async (spaceId, folderId, employeeId) => {
     try {
       const response = await apiClient.get(
-        `http://localhost:3000/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists`,
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists`,
         { params: { employeeId } }
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching project lists:', error);
+      console.error("Error fetching project lists:", error);
       throw error;
     }
   },
@@ -20,47 +23,53 @@ export const projectListService = {
   getProjectList: async (projectListId, employeeId) => {
     try {
       const response = await apiClient.get(
-        `http://localhost:3000/api/workspace/projectLists/${projectListId}`,
+        `${BASE_URL}/api/workspace/projectLists/${projectListId}`,
         { params: { employeeId } }
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching project list:', error);
+      console.error("Error fetching project list:", error);
       throw error;
     }
   },
 
   // Create a new project list
   createProjectList: async (spaceId, folderId, projectListData) => {
-    const employeeId = localStorage.getItem("employeeId"); 
+    const employeeId = localStorage.getItem("employeeId");
     try {
       const response = await apiClient.post(
-        `http://localhost:3000/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists`,
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists`,
         {
           ...projectListData,
-          employeeId
+          employeeId,
         }
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error creating project list:', error);
+      console.error("Error creating project list:", error);
       throw error;
     }
   },
 
   // Update a project list
-  updateProjectList: async (spaceId, folderId, projectListId, updateData, employeeId) => {
+  updateProjectList: async (
+    spaceId,
+    folderId,
+    projectListId,
+    updateData,
+    employeeId
+  ) => {
     try {
       const response = await apiClient.put(
-        `http://localhost:3000/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/${projectListId}`,
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/${projectListId}`,
         {
           ...updateData,
-          employeeId
+          employeeId,
         }
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error updating project list:', error);
+      console.error("Error updating project list:", error);
       throw error;
     }
   },
@@ -69,34 +78,39 @@ export const projectListService = {
   deleteProjectList: async (spaceId, folderId, projectListId, employeeId) => {
     try {
       const response = await apiClient.delete(
-        `http://localhost:3000/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/${projectListId}`,
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/${projectListId}`,
         {
-          params: { employeeId }
+          params: { employeeId },
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Error deleting project list:', error);
+      console.error("Error deleting project list:", error);
       throw error;
     }
   },
 
   // Reorder project lists in a folder
-  reorderProjectLists: async (spaceId, folderId, projectListIds, employeeId) => {
+  reorderProjectLists: async (
+    spaceId,
+    folderId,
+    projectListIds,
+    employeeId
+  ) => {
     try {
       const response = await apiClient.put(
-        `http://localhost:3000/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/reorder`,
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}/projectLists/reorder`,
         {
           projectListIds,
-          employeeId
+          employeeId,
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Error reordering project lists:', error);
+      console.error("Error reordering project lists:", error);
       throw error;
     }
-  }
+  },
 };
 
 export default projectListService;

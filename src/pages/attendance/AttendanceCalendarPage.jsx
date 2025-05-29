@@ -677,241 +677,110 @@ const AttendanceCalendarPage = () => {
       return newDate;
     });
   };
+// Update the getStatusSegments function in your AttendanceCalendarPage.jsx
+// Find this function and update it to handle rejected requests:
 
-  // Get status segments for a specific day
-  const getStatusSegments = (day) => {
-    const dateKey = formatDateToString(day);
-    const dayData = attendanceData[dateKey] || {};
-    const segments = [];
+const getStatusSegments = (day) => {
+  const dateKey = formatDateToString(day);
+  const dayData = attendanceData[dateKey] || {};
+  const segments = [];
 
-    try {
-      // Check if holiday from API
-      if (holidays[dateKey]) {
-        segments.push({
-          type: "holiday",
-          start: "09:00",
-          end: "17:00",
-          label: "Holiday",
-          fullLabel: `Holiday: ${
-            holidays[dateKey].description || "Public Holiday"
-          }`,
-        });
-        return segments;
-      }
-
-      // Check if weekend
-      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-      if (isWeekend || dayData.isHoliday) {
-        segments.push({
-          type: "holiday",
-          start: "09:00",
-          end: "17:00",
-          label: "Weekend",
-          fullLabel: dayData.holidayName
-            ? `Holiday: ${dayData.holidayName}`
-            : "Weekend - Not A Working Day",
-        });
-        return segments;
-      }
-
-      // Check if requested day off and its status
-      if (dayData.dayOffRequested) {
-        segments.push({
-          type: dayData.approved === false ? "dayoff_pending" : "dayoff",
-          start: "09:00",
-          end: "17:00",
-          label: dayData.approved === false ? "Day Off (Pending)" : "Day Off",
-          fullLabel: `Day Off ${
-            dayData.approved === false ? "(Pending Approval)" : ""
-          }: ${dayData.reason || "Employee Requested A Day Off"}`,
-        });
-        return segments;
-      }
-
-      // If marked absent explicitly
-      if (dayData.status === "absent") {
-        segments.push({
-          type: "absent",
-          start: "09:00",
-          end: "17:00",
-          label: "Absent",
-          fullLabel: dayData.notes
-            ? `Absent: ${dayData.notes}`
-            : "Employee Was Absent On This Day",
-        });
-        return segments;
-      }
-
-      // If no clock in data
-      if (!dayData.clockIn) {
-        // If date is in the past and no data, mark as absent
-        if (day < new Date().setHours(0, 0, 0, 0)) {
-          segments.push({
-            type: "absent",
-            start: "09:00",
-            end: "17:00",
-            label: "Absent",
-            fullLabel: "Employee Was Absent On This Day",
-          });
-        } else if (day.toDateString() === new Date().toDateString()) {
-          // If it's today and no clock in yet
-          segments.push({
-            type: "pending",
-            start: "09:00",
-            end: "17:00",
-            label: "Not Clocked In",
-            fullLabel: "Employee Has Not Clocked In Yet Today",
-          });
-        }
-        return segments;
-      }
-
-      // Process clock in/out data
-      let clockInTime;
-      try {
-        clockInTime = new Date(dayData.clockIn);
-        if (isNaN(clockInTime.getTime())) {
-          throw new Error("Invalid date");
-        }
-      } catch (err) {
-        console.error("Invalid clock in time:", dayData.clockIn);
-        segments.push({
-          type: "error",
-          start: "09:00",
-          end: "17:00",
-          label: "Data Error",
-          fullLabel: "There was an error processing attendance data",
-        });
-        return segments;
-      }
-
-      let clockOutTime = null;
-      if (dayData.clockOut) {
-        try {
-          clockOutTime = new Date(dayData.clockOut);
-          if (isNaN(clockOutTime.getTime())) {
-            throw new Error("Invalid date");
-          }
-        } catch (err) {
-          console.error("Invalid clock out time:", dayData.clockOut);
-        }
-      }
-
-      const clockInHour = clockInTime.getHours();
-      const clockInMinute = clockInTime.getMinutes();
-      const clockInStr = `${clockInHour
-        .toString()
-        .padStart(2, "0")}:${clockInMinute.toString().padStart(2, "0")}`;
-
-      let clockOutStr = "17:00";
-      if (clockOutTime) {
-        const clockOutHour = clockOutTime.getHours();
-        const clockOutMinute = clockOutTime.getMinutes();
-        clockOutStr = `${clockOutHour
-          .toString()
-          .padStart(2, "0")}:${clockOutMinute.toString().padStart(2, "0")}`;
-      }
-
-      // Check for early arrival
-      if (clockInHour < 9 || (clockInHour === 9 && clockInMinute === 0)) {
-        segments.push({
-          type: "early_arrival",
-          start: clockInStr,
-          end: "09:00",
-          label: "Early",
-          fullLabel: `Early arrival at ${clockInStr} (Before 09:00)`,
-        });
-
-        // For early arrivals, adjust the working hours start time
-        segments.push({
-          type: "working",
-          start: "09:00",
-          end: dayData.isEarly && clockOutTime ? clockOutStr : "17:00",
-          label: "Working",
-          fullLabel: `Working hours: 09:00 to ${
-            dayData.isEarly && clockOutTime ? clockOutStr : "17:00"
-          }`,
-        });
-      } else {
-        // Check for late arrival
-        if (dayData.isLate) {
-          segments.push({
-            type: "late",
-            start: "09:00",
-            end: clockInStr,
-            label: "Late",
-            fullLabel: `Late arrival at ${clockInStr} (After 09:00)`,
-          });
-        }
-
-        // Normal working hours
-        segments.push({
-          type: "working",
-          start: clockInStr,
-          end: dayData.isEarly && clockOutTime ? clockOutStr : "17:00",
-          label: "Working",
-          fullLabel: `Working hours: ${clockInStr} to ${
-            dayData.isEarly && clockOutTime ? clockOutStr : "17:00"
-          }`,
-        });
-      }
-
-      // Early departure
-      if (dayData.isEarly && clockOutTime) {
-        segments.push({
-          type: "early",
-          start: clockOutStr,
-          end: "17:00",
-          label: "Early",
-          fullLabel: `Early departure at ${clockOutStr} (Before 17:00)`,
-        });
-      }
-
-      // Overtime
-      if (dayData.hasOvertime && clockOutTime) {
-        segments.push({
-          type: "overtime",
-          start: "17:00",
-          end: clockOutStr,
-          label: "Overtime",
-          fullLabel: `Overtime: 17:00 to ${clockOutStr}`,
-        });
-      }
-
-      // If clocked in but not clocked out yet (current day)
-      if (!clockOutTime && day.toDateString() === new Date().toDateString()) {
-        // Add "currently working" indicator
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTimeStr = `${currentHour
-          .toString()
-          .padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
-
-        // Only if current time is after 17:00, show active overtime
-        if (now.getHours() >= 17) {
-          segments.push({
-            type: "active_overtime",
-            start: "17:00",
-            end: currentTimeStr,
-            label: "Active Overtime",
-            fullLabel: "Currently working overtime (after 17:00)",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error generating status segments:", error);
+  try {
+    // Check if holiday from API
+    if (holidays[dateKey]) {
       segments.push({
-        type: "error",
+        type: "holiday",
         start: "09:00",
         end: "17:00",
-        label: "Error",
-        fullLabel: "An error occurred while processing attendance data",
+        label: "Holiday",
+        fullLabel: `Holiday: ${
+          holidays[dateKey].description || "Public Holiday"
+        }`,
       });
+      return segments;
     }
 
-    return segments;
-  };
+    // Check if weekend
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    if (isWeekend || dayData.isHoliday) {
+      segments.push({
+        type: "holiday",
+        start: "09:00",
+        end: "17:00",
+        label: "Weekend",
+        fullLabel: dayData.holidayName
+          ? `Holiday: ${dayData.holidayName}`
+          : "Weekend - Not A Working Day",
+      });
+      return segments;
+    }
+
+    // IMPORTANT: Handle rejected day off requests
+    if (dayData.status === 'rejected' || (dayData.approved === false && dayData.rejectedAt)) {
+      segments.push({
+        type: "rejected",
+        start: "09:00",
+        end: "17:00",
+        label: "Request Rejected",
+        fullLabel: `Day off request was rejected by admin: ${dayData.reason || 'No reason provided'}`,
+      });
+      return segments;
+    }
+
+    // Check if requested day off and its status
+    if (dayData.dayOffRequested && dayData.approved === true) {
+      segments.push({
+        type: "dayoff",
+        start: "09:00",
+        end: "17:00",
+        label: "Day Off (Approved)",
+        fullLabel: `Day Off (Approved): ${dayData.reason || "Employee Requested A Day Off"}`,
+      });
+      return segments;
+    }
+
+    // Check for pending day off requests
+    if (dayData.dayOffRequested && (dayData.approved === false || dayData.approved === null || dayData.approved === undefined)) {
+      segments.push({
+        type: "dayoff_pending",
+        start: "09:00",
+        end: "17:00",
+        label: "Day Off (Pending)",
+        fullLabel: `Day Off (Pending Approval): ${dayData.reason || "Employee Requested A Day Off"}`,
+      });
+      return segments;
+    }
+
+    // If marked absent explicitly
+    if (dayData.status === "absent") {
+      segments.push({
+        type: "absent",
+        start: "09:00",
+        end: "17:00",
+        label: "Absent",
+        fullLabel: dayData.notes
+          ? `Absent: ${dayData.notes}`
+          : "Employee Was Absent On This Day",
+      });
+      return segments;
+    }
+
+    // Rest of your existing logic for clock in/out...
+    // [Keep all your existing clock in/out logic here]
+
+  } catch (error) {
+    console.error("Error generating status segments:", error);
+    segments.push({
+      type: "error",
+      start: "09:00",
+      end: "17:00",
+      label: "Error",
+      fullLabel: "An error occurred while processing attendance data",
+    });
+  }
+
+  return segments;
+};
 
   // Calculate time column positions
   const getTimePosition = (timeStr) => {

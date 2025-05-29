@@ -1,23 +1,23 @@
-// api/folderService.js
-import axios from 'axios';
+// api/folderService.js - Complete folder service
+import apiClient from "./apiClient.js";
 
-const BASE_URL = 'http://localhost:3000'; // Or your backend base URL
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app";
 
 export const folderService = {
   // Get all folders for a space
   getFolders: async (spaceId) => {
     try {
       const employeeId = localStorage.getItem("employeeId");
-      const response = await axios.get(`${BASE_URL}/api/workspace/spaces/${spaceId}/folders`, {
-        params: { employeeId }
-      });
+      const response = await apiClient.get(
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders`,
+        {
+          params: { employeeId },
+        }
+      );
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching folders:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-        console.error('Error status:', error.response.status);
-      }
+      console.error("Error fetching folders:", error);
       throw error;
     }
   },
@@ -27,23 +27,14 @@ export const folderService = {
     try {
       const employeeId = localStorage.getItem("employeeId");
       const dataToSend = { ...folderData, employeeId };
-      
-      const response = await axios.post(
-        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders`, 
-        dataToSend, 
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+
+      const response = await apiClient.post(
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/folders`,
+        dataToSend
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error creating folder:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-        console.error('Error status:', error.response.status);
-      }
+      console.error("Error creating folder:", error);
       throw error;
     }
   },
@@ -53,23 +44,14 @@ export const folderService = {
     try {
       const employeeId = localStorage.getItem("employeeId");
       const dataToSend = { ...updateData, employeeId };
-      
-      const response = await axios.put(
+
+      const response = await apiClient.put(
         `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}`,
-        dataToSend,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+        dataToSend
       );
       return response.data.data;
     } catch (error) {
-      console.error('Error updating folder:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-        console.error('Error status:', error.response.status);
-      }
+      console.error("Error updating folder:", error);
       throw error;
     }
   },
@@ -78,19 +60,16 @@ export const folderService = {
   deleteFolder: async (spaceId, folderId) => {
     try {
       const employeeId = localStorage.getItem("employeeId");
-      
-      const response = await axios.delete(
+
+      const response = await apiClient.delete(
         `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/${folderId}`,
         {
-          params: { employeeId }
+          params: { employeeId },
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Error deleting folder:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-      }
+      console.error("Error deleting folder:", error);
       throw error;
     }
   },
@@ -100,25 +79,17 @@ export const folderService = {
     try {
       const employeeId = localStorage.getItem("employeeId");
       const dataToSend = { folderIds, employeeId };
-      
-      const response = await axios.put(
+
+      const response = await apiClient.put(
         `${BASE_URL}/api/workspace/spaces/${spaceId}/folders/reorder`,
-        dataToSend,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+        dataToSend
       );
       return response.data;
     } catch (error) {
-      console.error('Error reordering folders:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-      }
+      console.error("Error reordering folders:", error);
       throw error;
     }
-  }
+  },
 };
 
 export default folderService;

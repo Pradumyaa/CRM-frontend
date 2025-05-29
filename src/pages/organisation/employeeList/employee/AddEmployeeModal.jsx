@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   X,
   User,
@@ -10,7 +9,73 @@ import {
   MapPin,
   Calendar,
   AlertCircle,
+  Shield,
+  Building,
+  Key,
+  Users,
+  CheckCircle,
 } from "lucide-react";
+
+const API_BASE = "https://getmax-backend.vercel.app/api";
+
+// API helper functions
+const apiRequest = async (url, options = {}) => {
+  const token = localStorage.getItem("token");
+  const config = {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  const response = await fetch(url, config);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "API request failed");
+  }
+
+  return data;
+};
+
+// Predefined departments
+const DEPARTMENTS = [
+  "Sales",
+  "Marketing",
+  "Human Resources (HR)",
+  "Finance",
+  "Operations",
+  "Information Technology (IT)",
+  "Research & Development (R&D)",
+  "Learning & Development (L&D)",
+  "Accounts",
+  "Legal",
+  "Customer Support",
+  "Admin & Facilities",
+  "Compliance",
+];
+
+// Permission labels for display
+const PERMISSION_LABELS = {
+  all: "Full System Access",
+  manage_users: "Manage Users",
+  manage_roles: "Manage Roles",
+  manage_permissions: "Manage Permissions",
+  manage_settings: "System Settings",
+  manage_team: "Team Management",
+  view_team: "View Team",
+  view_analytics: "View Analytics",
+  view_reports: "View Reports",
+  manage_attendance: "Manage Attendance",
+  view_attendance: "View Attendance",
+  manage_payroll: "Manage Payroll",
+  view_payroll: "View Payroll",
+  manage_documents: "Manage Documents",
+  view_documents: "View Documents",
+  view_own: "View Own Data Only",
+};
 
 const AddEmployeeModal = ({
   isOpen,
@@ -22,17 +87,19 @@ const AddEmployeeModal = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [roles, setRoles] = useState([]);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(false);
 
-  // Get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-  };
+  // Fetch roles on component mount
+  useEffect(() => {
+    if (isOpen) {
+      fetchRoles();
+    }
+  }, [isOpen]);
 
+  // Initialize employee data when modal opens
   useEffect(() => {
     if (isOpen) {
       setEmployeeData((prevData) => {
@@ -40,6 +107,10 @@ const AddEmployeeModal = ({
         return {
           ...safeData,
           status: safeData.status || "Active",
+          department: safeData.department || "",
+          roleId: safeData.roleId || "",
+          roleName: safeData.roleName || "",
+          permissions: safeData.permissions || [],
           address: safeData.address || {
             street: "",
             city: "",
@@ -52,6 +123,21 @@ const AddEmployeeModal = ({
       setErrors({});
     }
   }, [isOpen, setEmployeeData]);
+
+  const fetchRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const response = await apiRequest(`${API_BASE}/roles`);
+      const activeRoles = (response.roles || []).filter(
+        (role) => role.isActive
+      );
+      setRoles(activeRoles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,7 +166,6 @@ const AddEmployeeModal = ({
       },
     }));
 
-    // Clear error when field is edited
     if (errors[`address.${name}`]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -90,15 +175,38 @@ const AddEmployeeModal = ({
     }
   };
 
-  // Generate a systematic employee ID
+  const handleRoleChange = (e) => {
+    const roleId = e.target.value;
+    const role = roles.find((r) => r.id === roleId);
+
+    setSelectedRole(role);
+    setEmployeeData((prevData) => ({
+      ...(prevData || {}),
+      roleId: roleId,
+      roleName: role?.name || "",
+      roleLevel: role?.level || 0,
+      permissions: role?.permissions || [],
+    }));
+
+    if (errors.roleId) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.roleId;
+        return newErrors;
+      });
+    }
+  };
+
+  // Generate employee ID
   const generateEmployeeId = () => {
     const timestamp = new Date().getTime().toString().slice(-4);
     const department =
-      employeeData.jobTitle?.split(" ")[0]?.toUpperCase()?.slice(0, 3) || "EMP";
+      employeeData.department?.split(" ")[0]?.toUpperCase()?.slice(0, 3) ||
+      "EMP";
     return `${department}${timestamp}`;
   };
 
-  // Generate a random password
+  // Generate password
   const generatePassword = () => {
     const lowercase = "abcdefghijklmnopqrstuvwxyz";
     const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -108,18 +216,15 @@ const AddEmployeeModal = ({
     const allChars = lowercase + uppercase + numbers + symbols;
     let password = "";
 
-    // Ensure at least one of each type
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
     password += uppercase[Math.floor(Math.random() * uppercase.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
     password += symbols[Math.floor(Math.random() * symbols.length)];
 
-    // Add 4 more random characters
     for (let i = 0; i < 4; i++) {
       password += allChars[Math.floor(Math.random() * allChars.length)];
     }
 
-    // Shuffle the password
     return password
       .split("")
       .sort(() => Math.random() - 0.5)
@@ -133,6 +238,8 @@ const AddEmployeeModal = ({
     const requiredFields = [
       { key: "name", label: "Full Name" },
       { key: "jobTitle", label: "Job Title" },
+      { key: "department", label: "Department" },
+      { key: "roleId", label: "Role" },
       { key: "salary", label: "Salary" },
       { key: "phoneNumber", label: "Phone Number" },
       { key: "email", label: "Email" },
@@ -196,7 +303,6 @@ const AddEmployeeModal = ({
   };
 
   const formatEmployeeData = (data) => {
-    // Generate credentials for new employees
     const credentials = !isEditing
       ? {
           employeeId: generateEmployeeId(),
@@ -210,6 +316,7 @@ const AddEmployeeModal = ({
       salary: Number(data.salary),
       status: data.status || "Active",
       joiningDate: data.joiningDate || new Date().toISOString().split("T")[0],
+      isAdmin: data.roleLevel <= 3, // Auto-set admin status based on role level
     };
   };
 
@@ -224,29 +331,21 @@ const AddEmployeeModal = ({
       const formattedData = formatEmployeeData(employeeData);
 
       const apiEndpoint = isEditing
-        ? `http://localhost:3000/api/employees/${employeeData.employeeId}`
-        : "http://localhost:3000/api/employees";
-      const apiMethod = isEditing ? axios.put : axios.post;
+        ? `${API_BASE}/employees/${employeeData.employeeId}`
+        : `${API_BASE}/employees`;
 
-      const response = await apiMethod(
-        apiEndpoint,
-        formattedData,
-        getAuthHeaders()
-      );
+      const method = isEditing ? "PUT" : "POST";
 
-      if ([200, 201].includes(response.status)) {
-        onSave();
-        onClose();
-      } else {
-        throw new Error("Unexpected server response");
-      }
+      await apiRequest(apiEndpoint, {
+        method,
+        body: JSON.stringify(formattedData),
+      });
+
+      onSave();
+      onClose();
     } catch (error) {
       console.error("Error saving employee:", error);
-      alert(
-        error.response?.data?.message ||
-          error.message ||
-          "Error saving employee."
-      );
+      alert(error.message || "Error saving employee.");
     } finally {
       setIsSubmitting(false);
     }
@@ -262,7 +361,7 @@ const AddEmployeeModal = ({
       ></div>
 
       <div
-        className="relative bg-white rounded-xl shadow-2xl overflow-hidden max-w-4xl w-full"
+        className="relative bg-white rounded-xl shadow-2xl overflow-hidden max-w-5xl w-full"
         style={{ maxHeight: "90vh" }}
       >
         {/* Header */}
@@ -283,7 +382,7 @@ const AddEmployeeModal = ({
           className="p-6 overflow-y-auto custom-scrollbar"
           style={{ maxHeight: "calc(90vh - 130px)" }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Basic Information */}
             <div className="space-y-6">
               <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -339,35 +438,6 @@ const AddEmployeeModal = ({
                       <p className="mt-1 text-xs text-red-600 flex items-center">
                         <AlertCircle className="h-3 w-3 mr-1" />{" "}
                         {errors.jobTitle}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Salary */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Salary <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
-                        type="number"
-                        name="salary"
-                        placeholder="50000"
-                        value={employeeData.salary || ""}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-3 py-2 rounded-lg border ${
-                          errors.salary
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-gray-50"
-                        } focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500`}
-                      />
-                    </div>
-                    {errors.salary && (
-                      <p className="mt-1 text-xs text-red-600 flex items-center">
-                        <AlertCircle className="h-3 w-3 mr-1" /> {errors.salary}
                       </p>
                     )}
                   </div>
@@ -431,24 +501,33 @@ const AddEmployeeModal = ({
                     )}
                   </div>
 
-                  {/* Department */}
+                  {/* Salary */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department
+                      Salary <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Briefcase className="h-4 w-4 text-gray-400" />
+                        <DollarSign className="h-4 w-4 text-gray-400" />
                       </div>
                       <input
-                        type="text"
-                        name="department"
-                        placeholder="Engineering"
-                        value={employeeData.department || ""}
+                        type="number"
+                        name="salary"
+                        placeholder="50000"
+                        value={employeeData.salary || ""}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        className={`w-full pl-10 pr-3 py-2 rounded-lg border ${
+                          errors.salary
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-300 bg-gray-50"
+                        } focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500`}
                       />
                     </div>
+                    {errors.salary && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <AlertCircle className="h-3 w-3 mr-1" /> {errors.salary}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -462,7 +541,6 @@ const AddEmployeeModal = ({
                   </h3>
                 </div>
                 <div className="p-4 space-y-4">
-                  {/* Street */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Street <span className="text-red-500">*</span>
@@ -488,7 +566,6 @@ const AddEmployeeModal = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {/* City */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         City <span className="text-red-500">*</span>
@@ -513,7 +590,6 @@ const AddEmployeeModal = ({
                       )}
                     </div>
 
-                    {/* State */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         State <span className="text-red-500">*</span>
@@ -538,7 +614,6 @@ const AddEmployeeModal = ({
                       )}
                     </div>
 
-                    {/* Zip Code */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Zip Code <span className="text-red-500">*</span>
@@ -563,7 +638,6 @@ const AddEmployeeModal = ({
                       )}
                     </div>
 
-                    {/* Country */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Country <span className="text-red-500">*</span>
@@ -592,8 +666,134 @@ const AddEmployeeModal = ({
               </div>
             </div>
 
-            {/* Right Column - Employment Details */}
+            {/* Middle Column - Department & Role */}
             <div className="space-y-6">
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center p-3 border-b border-gray-100 bg-gray-50">
+                  <Building className="h-4 w-4 text-indigo-500 mr-2" />
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Department & Role
+                  </h3>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Department */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="department"
+                      value={employeeData.department || ""}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 rounded-lg appearance-none border ${
+                        errors.department
+                          ? "border-red-300 bg-red-50"
+                          : "border-gray-300 bg-gray-50"
+                      } focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500`}
+                    >
+                      <option value="">Select Department</option>
+                      {DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.department && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <AlertCircle className="h-3 w-3 mr-1" />{" "}
+                        {errors.department}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Role Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Role <span className="text-red-500">*</span>
+                    </label>
+                    {loadingRoles ? (
+                      <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
+                        Loading roles...
+                      </div>
+                    ) : (
+                      <select
+                        name="roleId"
+                        value={employeeData.roleId || ""}
+                        onChange={handleRoleChange}
+                        className={`w-full px-3 py-2 rounded-lg appearance-none border ${
+                          errors.roleId
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-300 bg-gray-50"
+                        } focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500`}
+                      >
+                        <option value="">Select Role</option>
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name} (Level {role.level})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {errors.roleId && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <AlertCircle className="h-3 w-3 mr-1" /> {errors.roleId}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Selected Role Info */}
+                  {selectedRole && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center">
+                          <Shield
+                            className={`h-5 w-5 text-${
+                              selectedRole.color || "blue"
+                            }-600 mr-2`}
+                          />
+                          <div>
+                            <h4 className="font-medium text-blue-900">
+                              {selectedRole.name}
+                            </h4>
+                            <p className="text-sm text-blue-700">
+                              Level {selectedRole.level}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowPermissions(!showPermissions)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          {showPermissions ? "Hide" : "Show"} Permissions
+                        </button>
+                      </div>
+
+                      {showPermissions && (
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <h5 className="text-sm font-medium text-blue-900 mb-2">
+                            Permissions:
+                          </h5>
+                          <div className="grid grid-cols-1 gap-1">
+                            {selectedRole.permissions?.map((permission) => (
+                              <div
+                                key={permission}
+                                className="flex items-center text-sm text-blue-800"
+                              >
+                                <CheckCircle className="h-3 w-3 mr-2 text-green-600" />
+                                {PERMISSION_LABELS[permission] || permission}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Employment Details */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="flex items-center p-3 border-b border-gray-100 bg-gray-50">
                   <Briefcase className="h-4 w-4 text-indigo-500 mr-2" />
@@ -698,24 +898,12 @@ const AddEmployeeModal = ({
                       />
                     </div>
                   </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      placeholder="Brief description about the employee"
-                      value={employeeData.description || ""}
-                      onChange={handleChange}
-                      rows={3}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
                 </div>
               </div>
+            </div>
 
+            {/* Right Column - Additional Info */}
+            <div className="space-y-6">
               {/* Employee ID if editing */}
               {isEditing && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -734,6 +922,108 @@ const AddEmployeeModal = ({
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       Employee ID cannot be changed
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Permission Summary */}
+              {employeeData.permissions &&
+                employeeData.permissions.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center p-3 border-b border-gray-100 bg-gray-50">
+                      <Key className="h-4 w-4 text-indigo-500 mr-2" />
+                      <h3 className="text-sm font-medium text-gray-700">
+                        Assigned Permissions
+                      </h3>
+                    </div>
+                    <div className="p-4">
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {employeeData.permissions.map((permission) => (
+                          <div
+                            key={permission}
+                            className="flex items-center p-2 bg-green-50 border border-green-200 rounded-lg"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                            <span className="text-sm text-green-800">
+                              {PERMISSION_LABELS[permission] || permission}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {employeeData.roleLevel <= 3 && (
+                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center">
+                            <Shield className="h-4 w-4 text-yellow-600 mr-2" />
+                            <span className="text-sm text-yellow-800 font-medium">
+                              Admin Privileges Enabled
+                            </span>
+                          </div>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            This role has administrative access to the system
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Description */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center p-3 border-b border-gray-100 bg-gray-50">
+                  <Users className="h-4 w-4 text-indigo-500 mr-2" />
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Additional Information
+                  </h3>
+                </div>
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    placeholder="Brief description about the employee"
+                    value={employeeData.description || ""}
+                    onChange={handleChange}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* System Generated Info for New Employees */}
+              {!isEditing && (
+                <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50">
+                  <div className="flex items-center p-3 border-b border-green-200 bg-green-100">
+                    <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                    <h3 className="text-sm font-medium text-green-800">
+                      Auto-Generated Credentials
+                    </h3>
+                  </div>
+                  <div className="p-4">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Employee ID:</span>
+                        <span className="font-mono text-green-800">
+                          Auto-generated
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Password:</span>
+                        <span className="font-mono text-green-800">
+                          Auto-generated
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Admin Status:</span>
+                        <span className="font-medium text-green-800">
+                          {employeeData.roleLevel <= 3 ? "Yes" : "No"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-green-600 mt-3">
+                      Credentials will be sent via email upon successful
+                      registration
                     </p>
                   </div>
                 </div>

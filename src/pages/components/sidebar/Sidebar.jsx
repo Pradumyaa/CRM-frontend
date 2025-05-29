@@ -1,4 +1,4 @@
-// pages/components/sidebar/Sidebar.jsx
+// Updated Sidebar.jsx with new organization structure
 import { useState } from "react";
 import {
   MdKeyboardArrowRight,
@@ -14,6 +14,18 @@ import {
   MdDateRange,
   MdChat,
   MdWorkspaces,
+  MdSupervisorAccount,
+  MdAssignment,
+  MdBarChart,
+  MdAnalytics,
+  MdRequestPage,
+  MdPeople,
+  MdFolderOpen,
+  MdTrackChanges,
+  MdAdminPanelSettings,
+  MdSecurity,
+  MdBusiness,
+  MdVerifiedUser,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
@@ -26,31 +38,200 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   const navigate = useNavigate();
 
   // Use authentication context
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, userRole } = useAuth();
 
-  // Build navigation items with admin items conditionally included
+  // Role hierarchy for access control
+  const ROLE_LEVELS = {
+    super_admin: 1,
+    product_owner: 2,
+    admin: 3,
+    cxo_director: 4,
+    senior_manager: 5,
+    manager: 6,
+    assistant_manager: 7,
+    senior_team_lead: 8,
+    team_lead: 9,
+    assistant_team_lead: 10,
+    senior_associate: 11,
+    associate: 12,
+    intern: 13,
+    viewer: 14,
+  };
+
+  const currentUserLevel = ROLE_LEVELS[userRole] || 14;
+
+  // Check if user has access to a feature based on role level
+  const hasAccess = (requiredLevel) => {
+    return currentUserLevel <= requiredLevel;
+  };
+
+  // Build navigation items with role-based access control
   const baseItems = [
     { label: "Dashboard", icon: <MdDashboard size={18} />, key: "dashboard" },
     { label: "Profile", icon: <MdPerson size={18} />, key: "profile" },
     { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
-    { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
   ];
 
-  const adminItems = [
-    {
-      label: "Organisation",
-      icon: <MdBusinessCenter size={18} />,
-      hasDropdown: true,
-      key: "organisation",
-      subItems: [
-        { label: "Employee List", key: "employeeList" },
-        { label: "Activity Tracker", key: "activityTracker" },
-        { label: "Documents", key: "documents" },
-      ],
-    },
-    { label: "Spaces", icon: <MdWorkspaces size={18} />, key: "spaces" },
+  // Organization section with role-based sub-items
+  const organizationItems = {
+    label: "Organisation",
+    icon: <MdBusinessCenter size={18} />,
+    hasDropdown: true,
+    key: "organisation",
+    subItems: [
+      // Always visible to admins and above
+      ...(hasAccess(3)
+        ? [
+            {
+              label: "Employee List",
+              key: "employeeList",
+              icon: <MdPeople size={16} />,
+              requiredLevel: 3,
+            },
+            {
+              label: "Super Admin Panel",
+              key: "superAdminPanel",
+              icon: <MdAdminPanelSettings size={16} />,
+              requiredLevel: 1,
+            },
+          ]
+        : []),
+
+      // Role Management - Super Admin and Product Owner only
+      ...(hasAccess(2)
+        ? [
+            {
+              label: "Role Management",
+              key: "roleManagement",
+              icon: <MdSecurity size={16} />,
+              requiredLevel: 2,
+            },
+          ]
+        : []),
+
+      // Documents - Accessible to managers and above
+      ...(hasAccess(6)
+        ? [
+            {
+              label: "Documents",
+              key: "documents",
+              icon: <MdFolderOpen size={16} />,
+              requiredLevel: 6,
+            },
+          ]
+        : []),
+
+      // Activity Tracker - Visible to team leads and above
+      ...(hasAccess(9)
+        ? [
+            {
+              label: "Activity Tracker",
+              key: "activityTracker",
+              icon: <MdTrackChanges size={16} />,
+              requiredLevel: 9,
+            },
+          ]
+        : []),
+
+      // Analytics - Different levels of access
+      ...(hasAccess(5)
+        ? [
+            {
+              label: "Analytics",
+              key: "analytics",
+              icon: <MdAnalytics size={16} />,
+              requiredLevel: 5,
+            },
+          ]
+        : []),
+
+      // Reports - Accessible to managers and above
+      ...(hasAccess(6)
+        ? [
+            {
+              label: "Reports",
+              key: "reports",
+              icon: <MdBarChart size={16} />,
+              requiredLevel: 6,
+            },
+          ]
+        : []),
+
+      // Requests - Accessible to assistant managers and above
+      ...(hasAccess(7)
+        ? [
+            {
+              label: "Requests",
+              key: "requests",
+              icon: <MdRequestPage size={16} />,
+              requiredLevel: 7,
+            },
+          ]
+        : []),
+
+      // Department Management - CXO/Director and above
+      ...(hasAccess(4)
+        ? [
+            {
+              label: "Departments",
+              key: "departments",
+              icon: <MdBusiness size={16} />,
+              requiredLevel: 4,
+            },
+          ]
+        : []),
+
+      // Permissions - Super Admin only
+      ...(hasAccess(1)
+        ? [
+            {
+              label: "Permissions",
+              key: "permissions",
+              icon: <MdVerifiedUser size={16} />,
+              requiredLevel: 1,
+            },
+          ]
+        : []),
+    ],
+  };
+
+  // Filter out items user doesn't have access to
+  const filteredOrganizationItems = {
+    ...organizationItems,
+    subItems: organizationItems.subItems.filter((item) =>
+      hasAccess(item.requiredLevel)
+    ),
+  };
+
+  // Additional sections based on role
+  const additionalItems = [];
+
+  // Add other sections for appropriate roles
+  if (hasAccess(8)) {
+    // Team leads and above
+    additionalItems.push(
+      { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
+      { label: "Workspaces", icon: <MdWorkspaces size={18} />, key: "spaces" }
+    );
+  }
+
+  // if (hasAccess(6)) {
+  //   // Managers and above
+  //   additionalItems.push({
+  //     label: "Income",
+  //     icon: <MdAttachMoney size={18} />,
+  //     key: "income",
+  //   });
+  // }
+
+  // Build final navigation items
+  const navigationItems = [
+    ...baseItems,
+    ...(filteredOrganizationItems.subItems.length > 0
+      ? [filteredOrganizationItems]
+      : []),
+    ...additionalItems,
   ];
-  const navigationItems = [...baseItems, ...(isAdmin ? adminItems : [])];
 
   const handleItemClick = (item) => {
     if (item.hasDropdown) {
@@ -83,12 +264,33 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
     navigate("/login");
   };
 
+  // Get role display name
+  const getRoleDisplayName = (role) => {
+    const roleNames = {
+      super_admin: "Super Admin",
+      product_owner: "Product Owner",
+      admin: "Administrator",
+      cxo_director: "CXO/Director",
+      senior_manager: "Senior Manager",
+      manager: "Manager",
+      assistant_manager: "Assistant Manager",
+      senior_team_lead: "Senior Team Lead",
+      team_lead: "Team Lead",
+      assistant_team_lead: "Assistant Team Lead",
+      senior_associate: "Senior Associate",
+      associate: "Associate",
+      intern: "Intern",
+      viewer: "Viewer/Auditor",
+    };
+    return roleNames[role] || "Employee";
+  };
+
   return (
     <>
       {/* Sidebar */}
       <aside
         className={`bg-white shadow-lg border-r border-gray-200 fixed md:relative transition-all duration-300 ease-in-out flex flex-col h-screen ${
-          isSidebarOpen ? "w-[220px]" : "w-[60px]"
+          isSidebarOpen ? "w-[280px]" : "w-[60px]"
         }`}
       >
         {/* Sidebar Header */}
@@ -116,13 +318,32 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
           </button>
         </div>
 
-        {/* User info section */}
+        {/* User info section with role badge */}
         {isSidebarOpen && (
           <div className="px-4 py-3 border-b border-gray-200">
-            <p className="text-sm font-semibold">{user?.name || "User"}</p>
-            <p className="text-xs text-gray-500">
-              {isAdmin ? "Administrator" : "Employee"}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {user?.name || "User"}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {getRoleDisplayName(userRole)}
+                </p>
+              </div>
+              <div
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  currentUserLevel <= 3
+                    ? "bg-purple-100 text-purple-800"
+                    : currentUserLevel <= 6
+                    ? "bg-blue-100 text-blue-800"
+                    : currentUserLevel <= 9
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                L{currentUserLevel}
+              </div>
+            </div>
           </div>
         )}
 
@@ -138,29 +359,29 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                     onClick={() => handleItemClick(item)}
                     onMouseEnter={() => handleMouseEnter(item)}
                     onMouseLeave={handleMouseLeave}
-                    className={`w-full flex justify-between items-center gap-2 py-2 px-2 rounded-md transition-all duration-50 ${
+                    className={`w-full flex justify-between items-center gap-2 py-2.5 px-3 rounded-lg transition-all duration-200 ${
                       selectedItem === item.key || openDropdown === item.label
-                        ? "bg-[#5932EA] text-white hover:bg-white hover:text-[#5932EA]"
-                        : "text-[#9197b3] hover:bg-[#F6F4FF] hover:text-[#5932EA] group-hover:bg-[#F6F4FF] group-hover:text-[#5932EA]"
+                        ? "bg-[#5932EA] text-white shadow-md"
+                        : "text-[#6B7280] hover:bg-[#F8FAFC] hover:text-[#5932EA]"
                     }`}
                   >
                     <div
-                      className={`flex items-center gap-2 ${
+                      className={`flex items-center gap-3 ${
                         isSidebarOpen ? "" : "justify-center w-full"
                       }`}
                     >
                       <div
-                        className={`transition-colors duration-50 ${
+                        className={`transition-colors duration-200 ${
                           selectedItem === item.key ||
                           openDropdown === item.label
-                            ? "text-white group-hover:text-[#5932EA]"
+                            ? "text-white"
                             : "text-[#5932EA]"
                         }`}
                       >
                         {item.icon}
                       </div>
                       <span
-                        className={`font-medium text-sm transition-all duration-50 ${
+                        className={`font-medium text-sm transition-all duration-200 ${
                           isSidebarOpen
                             ? "block opacity-100"
                             : "hidden opacity-0 w-0"
@@ -174,20 +395,20 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                         {openDropdown === item.label ? (
                           <MdKeyboardArrowDown
                             size={16}
-                            className={`transition-colors duration-50 ${
+                            className={`transition-all duration-200 ${
                               selectedItem === item.key ||
                               openDropdown === item.label
-                                ? "text-white group-hover:text-[#5932EA]"
+                                ? "text-white"
                                 : "text-[#5932EA]"
                             }`}
                           />
                         ) : (
                           <MdKeyboardArrowRight
                             size={16}
-                            className={`transition-colors duration-50 ${
+                            className={`transition-all duration-200 ${
                               selectedItem === item.key ||
                               openDropdown === item.label
-                                ? "text-white group-hover:text-[#5932EA]"
+                                ? "text-white"
                                 : "text-[#5932EA]"
                             }`}
                           />
@@ -203,69 +424,76 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                       <div
                         style={{
                           position: "fixed",
-                          left: "50px",
+                          left: "65px",
                           top: (() => {
                             const element = document.getElementById(item.key);
                             if (element) {
                               const rect = element.getBoundingClientRect();
                               return `${
-                                rect.top + window.scrollY + rect.height / 2 - 10
+                                rect.top + window.scrollY + rect.height / 2 - 20
                               }px`;
                             }
                             return "0px";
                           })(),
                           zIndex: 1000,
                         }}
-                        className="bg-white shadow-md rounded-md py-2 px-3 min-w-[100px] text-[#5932EA] text-sm font-medium"
+                        className="bg-gray-900 text-white shadow-lg rounded-md py-2 px-3 min-w-[120px] text-sm font-medium"
                         id={`tooltip-${item.key}`}
                       >
                         {item.label}
-                        <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                        <div className="absolute left-0 top-[50%] transform -translate-x-[4px] -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
                       </div>
                     )}
                 </div>
 
-                {/* Dropdown content with visual indicators */}
+                {/* Enhanced Dropdown content with visual indicators */}
                 {item.hasDropdown &&
                   openDropdown === item.label &&
                   isSidebarOpen && (
-                    <div className="mt-1 space-y-1 overflow-hidden transition-all duration-200 ease-in-out">
+                    <div className="mt-1 space-y-1 overflow-hidden transition-all duration-300 ease-in-out bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-2 ml-2 border-l-2 border-[#5932EA]">
                       {item.subItems.map((subItem) => (
-                        <div key={subItem.key} className="relative pl-6 pr-2">
-                          {/* Visual connection line */}
-                          <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-400"></div>
-
+                        <div key={subItem.key} className="relative">
                           <button
                             onClick={() =>
                               handleSubItemClick(item.label, subItem.key)
                             }
-                            className={`w-full flex justify-start items-center px-3 py-2 rounded-md text-sm transition-all duration-200 hover:bg-slate-300 ${
+                            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group ${
                               selectedItem === subItem.key
-                                ? "bg-[#F6F4FF] text-[#5932EA] font-medium shadow-sm"
-                                : "text-[#9197b3] hover:text-[#5932EA]"
+                                ? "bg-[#5932EA] text-white shadow-sm"
+                                : "text-[#6B7280] hover:bg-white hover:text-[#5932EA] hover:shadow-sm"
                             }`}
                           >
-                            <div className="flex items-center">
-                              {/* Horizontal connection line */}
-                              <div className="absolute left-3 top-1/2 w-2.5 h-0.5 bg-gray-400"></div>
-
-                              {/* Visual indicator for selection */}
+                            <div className="flex items-center w-full">
+                              {/* Sub-item icon */}
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 ${
+                                className={`mr-3 transition-colors duration-200 ${
                                   selectedItem === subItem.key
-                                    ? "bg-[#5932EA]"
-                                    : "border border-gray-300"
+                                    ? "text-white"
+                                    : "text-[#5932EA] group-hover:text-[#5932EA]"
                                 }`}
-                              ></div>
+                              >
+                                {subItem.icon}
+                              </div>
 
                               <span
-                                className={`${
+                                className={`flex-1 text-left font-medium ${
                                   selectedItem === subItem.key
-                                    ? "text-[#5932EA]"
-                                    : "text-gray-600"
+                                    ? "text-white"
+                                    : "text-gray-700 group-hover:text-[#5932EA]"
                                 }`}
                               >
                                 {subItem.label}
+                              </span>
+
+                              {/* Role level indicator */}
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  selectedItem === subItem.key
+                                    ? "bg-white/20 text-white"
+                                    : "bg-gray-200 text-gray-600 group-hover:bg-[#5932EA]/10 group-hover:text-[#5932EA]"
+                                }`}
+                              >
+                                L{subItem.requiredLevel}
                               </span>
                             </div>
                           </button>
@@ -278,7 +506,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
           </nav>
         </div>
 
-        {/* Bottom Section */}
+        {/* Enhanced Bottom Section */}
         <div
           className={`border-t border-gray-200 transition-all duration-300 ${
             isSidebarOpen ? "p-3" : "p-2"
@@ -296,11 +524,13 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                   handleMouseEnter({ key: "logout", label: "Logout" })
                 }
                 onMouseLeave={handleMouseLeave}
-                className="flex items-center gap-2 text-[#9197b3] hover:text-[#5932EA] hover:bg-[#F6F4FF] transition-all duration-200 p-2 rounded-md w-full justify-center"
+                className="flex items-center gap-2 text-[#6B7280] hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2.5 rounded-lg w-full justify-center group"
               >
                 <MdLogout size={18} />
                 <span
-                  className={`text-sm ${isSidebarOpen ? "block" : "hidden"}`}
+                  className={`text-sm font-medium ${
+                    isSidebarOpen ? "block" : "hidden"
+                  }`}
                 >
                   Logout
                 </span>
@@ -310,17 +540,16 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               {!isSidebarOpen &&
                 hoveredItem &&
                 hoveredItem.key === "logout" && (
-                  // pages/components/sidebar/Sidebar.jsx (continued)
-                  <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
+                  <div className="absolute left-full top-1/2 ml-2 bg-gray-900 text-white shadow-lg rounded-md py-2 px-3 z-10 text-sm font-medium -translate-y-1/2">
                     Logout
-                    <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                    <div className="absolute left-0 top-[50%] transform -translate-x-[4px] -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
                   </div>
                 )}
             </div>
 
             <div className="relative">
               <button
-                className="flex items-center gap-2 text-[#9197b3] hover:text-[#5932EA] hover:bg-[#F6F4FF] transition-all duration-200 p-2 rounded-md w-full justify-center"
+                className="flex items-center gap-2 text-[#6B7280] hover:text-[#5932EA] hover:bg-[#F8FAFC] transition-all duration-200 p-2.5 rounded-lg w-full justify-center group"
                 onMouseEnter={() =>
                   handleMouseEnter({ key: "settings", label: "Settings" })
                 }
@@ -328,7 +557,9 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               >
                 <MdSettings size={18} />
                 <span
-                  className={`text-sm ${isSidebarOpen ? "block" : "hidden"}`}
+                  className={`text-sm font-medium ${
+                    isSidebarOpen ? "block" : "hidden"
+                  }`}
                 >
                   Settings
                 </span>
@@ -338,9 +569,9 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               {!isSidebarOpen &&
                 hoveredItem &&
                 hoveredItem.key === "settings" && (
-                  <div className="absolute left-full top-1/2 ml-2 bg-white shadow-md rounded-md py-2 px-3 z-10 text-[#5932EA] text-sm font-medium -translate-y-1/2">
+                  <div className="absolute left-full top-1/2 ml-2 bg-gray-900 text-white shadow-lg rounded-md py-2 px-3 z-10 text-sm font-medium -translate-y-1/2">
                     Settings
-                    <div className="absolute left-0 top-[50%] transform -translate-x-[5px] -translate-y-1/2 rotate-45 w-2 h-2 bg-white"></div>
+                    <div className="absolute left-0 top-[50%] transform -translate-x-[4px] -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
                   </div>
                 )}
             </div>
@@ -348,7 +579,13 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
 
           {isSidebarOpen && (
             <div className="mt-3 text-center text-xs text-gray-400">
-              <p>&copy; Dashboard. All rights reserved.</p>
+              <p>&copy; 2024 Dashboard. All rights reserved.</p>
+              <p className="mt-1">
+                Access Level:{" "}
+                <span className="font-medium text-[#5932EA]">
+                  L{currentUserLevel}
+                </span>
+              </p>
             </div>
           )}
         </div>

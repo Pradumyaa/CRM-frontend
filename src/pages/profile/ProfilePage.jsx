@@ -27,7 +27,7 @@ import Overview from "./profile-components/Overview";
 import Projects from "./profile-components/Projects";
 import Documents from "./profile-components/Documents";
 import PerformanceStats from "./profile-components/PerformanceStats";
-import resumeParserService from "../../services/ResumeParserservice";
+// import resumeParserService from "../../services/ResumeParserservice";
 
 // Simple Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -89,7 +89,7 @@ const ProfilePage = ({ profileId }) => {
         }
 
         const response = await fetch(
-          `http://localhost:3000/api/employees/admin/${currentEmployeeId}`,
+          `https://getmax-backend.vercel.app/api/employees/admin/${currentEmployeeId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -224,7 +224,7 @@ const ProfilePage = ({ profileId }) => {
 
         // Fetch employee data from backend with authentication token
         const response = await fetch(
-          `http://localhost:3000/api/employees/${employeeId}`,
+          `https://getmax-backend.vercel.app/api/employees/${employeeId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -277,7 +277,7 @@ const ProfilePage = ({ profileId }) => {
       }
 
       const response = await fetch(
-        `http://localhost:3000/api/employees/${employeeId}`,
+        `https://getmax-backend.vercel.app/api/employees/${employeeId}`,
         {
           method: "PUT",
           headers: {
@@ -323,7 +323,7 @@ const ProfilePage = ({ profileId }) => {
         const token = localStorage.getItem("token");
 
         const response = await fetch(
-          "http://localhost:3000/api/images/upload",
+          "https://getmax-backend.vercel.app/api/images/upload",
           {
             method: "POST",
             headers: {

@@ -28,69 +28,82 @@ export const buttonStyles = {
     iconActive: "p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors",
     disabled: "bg-gray-300 text-gray-500 cursor-not-allowed px-4 py-2 rounded-md",
 };
+// utils/calendarStyles.js - Add rejected status colors
 
-// Status colors for attendance timeline
 export const statusColors = {
-    working: {
-        bg: "bg-green-500",
-        text: "text-green-600",
-        lightBg: "bg-green-100",
-    },
-    overtime: {
-        bg: "bg-orange-500",
-        text: "text-orange-600",
-        lightBg: "bg-orange-100",
-    },
-    active_overtime: {
-        bg: "bg-orange-300",
-        text: "text-orange-600",
-        lightBg: "bg-orange-50",
-    },
-    late: {
-        bg: "bg-red-500",
-        text: "text-red-600",
-        lightBg: "bg-red-100",
-    },
-    early: {
-        bg: "bg-red-500",
-        text: "text-red-600",
-        lightBg: "bg-red-100",
-    },
-    dayoff: {
-        bg: "bg-yellow-400",
-        text: "text-yellow-600",
-        lightBg: "bg-yellow-100",
-    },
-    dayoff_pending: {
-        bg: "bg-yellow-300",
-        text: "text-yellow-600",
-        lightBg: "bg-yellow-50",
-    },
-    holiday: {
-        bg: "bg-purple-500",
-        text: "text-purple-600",
-        lightBg: "bg-purple-100",
-    },
-    absent: {
-        bg: "bg-gray-400",
-        text: "text-gray-600",
-        lightBg: "bg-gray-100",
-    },
-    early_arrival: {
-        bg: "bg-blue-400",
-        text: "text-blue-600",
-        lightBg: "bg-blue-100",
-    },
-    pending: {
-        bg: "bg-gray-300",
-        text: "text-gray-500",
-        lightBg: "bg-gray-50",
-    },
-    error: {
-        bg: "bg-red-300",
-        text: "text-red-500",
-        lightBg: "bg-red-50",
-    },
+  // Existing colors...
+  working: {
+    bg: "bg-green-100",
+    text: "text-green-700",
+    border: "border-green-200"
+  },
+  overtime: {
+    bg: "bg-orange-100", 
+    text: "text-orange-700",
+    border: "border-orange-200"
+  },
+  late: {
+    bg: "bg-red-100",
+    text: "text-red-700", 
+    border: "border-red-200"
+  },
+  early: {
+    bg: "bg-yellow-100",
+    text: "text-yellow-700",
+    border: "border-yellow-200"
+  },
+  dayoff: {
+    bg: "bg-blue-100",
+    text: "text-blue-700",
+    border: "border-blue-200"
+  },
+  dayoff_pending: {
+    bg: "bg-amber-100",
+    text: "text-amber-700", 
+    border: "border-amber-200"
+  },
+  // NEW: Add rejected status
+  rejected: {
+    bg: "bg-red-100",
+    text: "text-red-700",
+    border: "border-red-200"
+  },
+  holiday: {
+    bg: "bg-purple-100",
+    text: "text-purple-700",
+    border: "border-purple-200"
+  },
+  absent: {
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    border: "border-gray-200"
+  },
+  early_arrival: {
+    bg: "bg-indigo-100",
+    text: "text-indigo-700",
+    border: "border-indigo-200"
+  }
+};
+
+// Also update the getStatusColor function in your calendar component:
+const getStatusColor = (type) => {
+  const statusColorMap = {
+    working: "bg-green-500",
+    overtime: "bg-orange-500",
+    active_overtime: "bg-orange-300",
+    late: "bg-red-500",
+    early: "bg-red-400",
+    dayoff: "bg-blue-400",
+    dayoff_pending: "bg-amber-400",
+    rejected: "bg-red-600", // NEW: Darker red for rejected
+    holiday: "bg-purple-500",
+    absent: "bg-gray-500",
+    early_arrival: "bg-blue-400",
+    pending: "bg-gray-300",
+    error: "bg-red-300",
+  };
+
+  return statusColorMap[type] || "bg-gray-200";
 };
 
 // Animation classes

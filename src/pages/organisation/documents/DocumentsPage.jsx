@@ -1,702 +1,772 @@
 import React, { useState, useEffect } from "react";
 import {
+  FolderOpen,
+  Upload,
+  Download,
+  Trash2,
+  Eye,
+  Search,
   Filter,
-  ChevronDown,
-  FileText,
-  Calendar,
-  BarChart2,
-  Users,
   RefreshCw,
   Plus,
   X,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  File,
+  Image,
+  Folder,
+  Users,
+  Building,
+  Calendar,
+  MoreHorizontal,
+  Edit,
+  Share,
+  Star,
+  Archive,
 } from "lucide-react";
-import SearchBar from "@/pages/components/SearchBar";
-import Pagination from "@/pages/components/Pagination";
-import DocumentsTable from "./components/DocumentsTable";
-import DocumentStatsCards from "./components/DocumentStatsCards";
-import DocumentUploadModal from "./components/DocumentUploadModal";
-import documentService from "../../../services/DocumentService";
 
 const DocumentsPage = () => {
+  const [documents, setDocuments] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedDocType, setSelectedDocType] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [username, setUsername] = useState("");
-  const [docStats, setDocStats] = useState({
-    totalDocs: 0,
-    uploadedDocs: 0,
-    completionPercentage: 0,
-  });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const itemsPerPage = 10;
+  const [success, setSuccess] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [selectedDocType, setSelectedDocType] = useState("all");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadData, setUploadData] = useState({
+    employeeId: "",
+    documentType: "",
+    file: null,
+  });
+  const [stats, setStats] = useState({
+    totalDocuments: 0,
+    totalEmployees: 0,
+    documentTypes: 0,
+    recentUploads: 0,
+  });
 
-  // Document types definition - Moved here for global access
+  // Document types
   const documentTypes = [
-    {
-      id: "contract",
-      label: "Employment Contract",
-      required: true,
-      color: "blue",
-      description: "Official employment agreement between company and employee",
-    },
-    {
-      id: "payroll",
-      label: "Payroll Details",
-      required: true,
-      color: "orange",
-      description: "Salary structure, tax information and payment details",
-    },
-    {
-      id: "performance",
-      label: "Performance Review",
-      required: true,
-      color: "purple",
-      description: "Regular employee performance evaluation reports",
-    },
-    {
-      id: "resume",
-      label: "Resume",
-      required: false,
-      color: "green",
-      description: "Employee's curriculum vitae and professional background",
-    },
-    {
-      id: "identification",
-      label: "Identification Documents",
-      required: true,
-      color: "red",
-      description: "Government issued identification documents",
-    },
-    {
-      id: "certifications",
-      label: "Certifications",
-      required: false,
-      color: "indigo",
-      description: "Professional certifications and qualifications",
-    },
+    { id: "contract", name: "Contract", icon: FileText },
+    { id: "identification", name: "ID Documents", icon: File },
+    { id: "payroll", name: "Payroll", icon: FileText },
+    { id: "certificate", name: "Certificates", icon: Star },
+    { id: "resume", name: "Resume/CV", icon: FileText },
+    { id: "photo", name: "Photos", icon: Image },
+    { id: "other", name: "Other", icon: File },
   ];
 
-  // Get current user from localStorage
-  useEffect(() => {
-    const employeeId = localStorage.getItem("employeeId");
-    if (employeeId) {
-      fetchCurrentUser(employeeId);
-    }
-  }, []);
+  // Get auth token
+  const getAuthToken = () => localStorage.getItem("token");
 
-  // Fetch current user details
-  const fetchCurrentUser = async (employeeId) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found.");
+  // API call wrapper
+  const apiCall = async (url, options = {}) => {
+    const token = getAuthToken();
+    const response = await fetch(
+      `https://getmax-backend.vercel.app/api${url}`,
+      {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
       }
+    );
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "API call failed");
+    }
+
+    return response.json();
+  };
+
+  // Fetch all documents
+  const fetchDocuments = async () => {
+    try {
+      const response = await apiCall("/documents/all");
+      return response.documents || [];
+    } catch (error) {
+      console.error("Failed to fetch documents:", error);
+      return [];
+    }
+  };
+
+  // Fetch all employees
+  const fetchEmployees = async () => {
+    try {
+      const response = await apiCall("/employees");
+      return response.employees || [];
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
+      return [];
+    }
+  };
+
+  // Fetch document stats
+  const fetchDocumentStats = async () => {
+    try {
+      const response = await apiCall("/documents/stats");
+      return response.stats || {};
+    } catch (error) {
+      console.error("Failed to fetch document stats:", error);
+      return {};
+    }
+  };
+
+  // Upload document
+  const uploadDocument = async (file, employeeId, documentType) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("employeeId", employeeId);
+      formData.append("documentType", documentType);
+
+      const token = getAuthToken();
       const response = await fetch(
-        `http://localhost:3000/api/employees/${employeeId}`,
+        "https://getmax-backend.vercel.app/api/documents/upload",
         {
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          body: formData,
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch current user");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Upload failed");
       }
 
-      const data = await response.json();
-      setUsername(data.employee.name || "Admin User");
+      return response.json();
     } catch (error) {
-      console.error("Error fetching current user:", error);
+      throw error;
     }
   };
 
-  // Fetch employees and their documents
-  const fetchEmployees = async () => {
-    setIsLoading(true);
-    setError(null);
-
+  // Delete document
+  const deleteDocument = async (documentId) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found.");
-      }
-
-      // First get all employees
-      const response = await fetch("http://localhost:3000/api/employees", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await apiCall(`/documents/${documentId}`, {
+        method: "DELETE",
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch employees");
-      }
-
-      const employeesData = await response.json();
-
-      // For each employee, get their documents
-      const employeesWithDocs = await Promise.all(
-        employeesData.employees.map(async (emp) => {
-          try {
-            // Get documents from API
-            const empDocs = await documentService.getEmployeeDocuments(
-              emp.employeeId || emp._id
-            );
-
-            // Build a documents object to match the expected format
-            const docsObject = {};
-            documentTypes.forEach((docType) => {
-              const foundDoc = empDocs.find(
-                (d) => d.documentType === docType.id
-              );
-              if (foundDoc) {
-                // Format as expected by the UI
-                docsObject[docType.id] = JSON.stringify({
-                  name: foundDoc.name,
-                  type: foundDoc.type,
-                  size: foundDoc.size,
-                  date: foundDoc.createdAt || foundDoc.uploadDate,
-                  dataUrl: foundDoc.url,
-                  id: foundDoc.id,
-                });
-              } else {
-                // Check localStorage as fallback during migration period
-                const legacyDoc = localStorage.getItem(
-                  `document_${docType.id}_${emp.employeeId || emp._id}`
-                );
-                if (legacyDoc) {
-                  docsObject[docType.id] = legacyDoc;
-                }
-              }
-            });
-
-            return {
-              ...emp,
-              documents: docsObject,
-            };
-          } catch (err) {
-            console.error(
-              `Error fetching documents for employee ${
-                emp.employeeId || emp._id
-              }:`,
-              err
-            );
-            return {
-              ...emp,
-              documents: {},
-            };
-          }
-        })
-      );
-
-      setEmployees(employeesWithDocs);
-      setFilteredEmployees(employeesWithDocs);
-
-      // Fetch document stats
-      await fetchDocumentStats();
     } catch (error) {
-      console.error("Error fetching employees:", error);
-      setError("Failed to fetch employees. Please try again later.");
+      throw error;
+    }
+  };
+
+  // Load all data
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [documentsData, employeesData, statsData] = await Promise.all([
+        fetchDocuments(),
+        fetchEmployees(),
+        fetchDocumentStats(),
+      ]);
+
+      setDocuments(documentsData);
+      setEmployees(employeesData);
+      setStats({
+        totalDocuments: statsData.totalDocuments || documentsData.length,
+        totalEmployees: statsData.totalEmployees || employeesData.length,
+        documentTypes: statsData.documentsByType
+          ? Object.keys(statsData.documentsByType).length
+          : documentTypes.length,
+        recentUploads: documentsData.filter((doc) => {
+          const uploadDate = new Date(doc.createdAt || doc.uploadDate);
+          const today = new Date();
+          const timeDiff = today - uploadDate;
+          return timeDiff < 24 * 60 * 60 * 1000; // Last 24 hours
+        }).length,
+      });
+    } catch (error) {
+      setError(`Failed to load data: ${error.message}`);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      setLoading(false);
     }
   };
 
-  // Fetch document statistics
-  const fetchDocumentStats = async () => {
+  // Handle file upload
+  const handleFileUpload = async () => {
+    if (
+      !uploadData.file ||
+      !uploadData.employeeId ||
+      !uploadData.documentType
+    ) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
     try {
-      const stats = await fetch("http://localhost:3000/api/documents/stats", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      setLoading(true);
+      const response = await uploadDocument(
+        uploadData.file,
+        uploadData.employeeId,
+        uploadData.documentType
+      );
 
-      if (stats.ok) {
-        const statsData = await stats.json();
-        if (statsData.success) {
-          setDocStats({
-            totalDocs: statsData.stats.totalDocuments,
-            uploadedDocs: statsData.stats.totalDocuments,
-            completionPercentage: statsData.stats.completionRate,
-          });
-          return;
-        }
-      }
-
-      // If API fails, calculate stats client-side
-      calculateDocumentStats();
+      setSuccess("Document uploaded successfully!");
+      setShowUploadModal(false);
+      setUploadData({ employeeId: "", documentType: "", file: null });
+      await loadData();
     } catch (error) {
-      console.error("Error fetching document stats:", error);
-      calculateDocumentStats();
+      setError(`Upload failed: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Handle document deletion
+  const handleDeleteDocument = async (documentId, documentName) => {
+    if (!window.confirm(`Are you sure you want to delete "${documentName}"?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteDocument(documentId);
+      setSuccess("Document deleted successfully!");
+      await loadData();
+    } catch (error) {
+      setError(`Failed to delete document: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize data
   useEffect(() => {
-    fetchEmployees();
+    loadData();
   }, []);
 
-  const refreshData = async () => {
-    setIsRefreshing(true);
-    await fetchEmployees();
-  };
-
-  // Apply status filters
-  const applyFilters = () => {
-    let filtered = [...employees];
-
-    if (statusFilter === "missing") {
-      filtered = filtered.filter((emp) =>
-        documentTypes.some(
-          (docType) => docType.required && !emp.documents[docType.id]
-        )
-      );
-    } else if (statusFilter === "complete") {
-      filtered = filtered.filter((emp) =>
-        documentTypes.every(
-          (docType) => !docType.required || emp.documents[docType.id]
-        )
-      );
-    }
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (emp) =>
-          emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          emp.employeeId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          emp.email?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    setFilteredEmployees(filtered);
-    setCurrentPage(1);
-  };
-
-  // Apply filters when status filter or employees change
+  // Clear messages
   useEffect(() => {
-    applyFilters();
-  }, [statusFilter, employees, searchQuery]);
-
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-  };
-
-  const handleDeleteDocument = async (employee, docType) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete this ${
-          documentTypes.find((dt) => dt.id === docType)?.label || docType
-        }?`
-      )
-    ) {
-      try {
-        setIsRefreshing(true);
-
-        // Check if this is a database document or localStorage document
-        const documentString = employee.documents[docType];
-        if (documentString) {
-          const documentData = JSON.parse(documentString);
-
-          if (documentData.id) {
-            // Delete from database using the API
-            await documentService.deleteDocument(documentData.id);
-          } else {
-            // Legacy document - remove from localStorage
-            const storageKey = `document_${docType}_${
-              employee.employeeId || employee._id
-            }`;
-            localStorage.removeItem(storageKey);
-          }
-        }
-
-        // Refresh data to reflect changes
-        await fetchEmployees();
-      } catch (error) {
-        console.error("Error deleting document:", error);
-        alert("Failed to delete document. Please try again.");
-      } finally {
-        setIsRefreshing(false);
-      }
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError(null);
+        setSuccess(null);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
+  }, [error, success]);
+
+  // Filter documents
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesSearch =
+      doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesEmployee =
+      selectedEmployee === "all" || doc.employeeId === selectedEmployee;
+    const matchesType =
+      selectedDocType === "all" || doc.documentType === selectedDocType;
+
+    return matchesSearch && matchesEmployee && matchesType;
+  });
+
+  // Get employee name
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(
+      (emp) => emp.employeeId === employeeId || emp.id === employeeId
+    );
+    return employee?.name || employeeId || "Unknown";
   };
 
-  const handleDownload = (employee, docType) => {
-    const docData = employee.documents[docType];
+  // Get file size in readable format
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
-    if (!docData) {
-      return;
+  // Get file icon based on type
+  const getFileIcon = (fileName, documentType) => {
+    const extension = fileName?.split(".").pop()?.toLowerCase();
+
+    if (["jpg", "jpeg", "png", "gif", "bmp"].includes(extension)) {
+      return Image;
     }
 
-    try {
-      const fileData = JSON.parse(docData);
-
-      // Create a temporary link and trigger download
-      const link = document.createElement("a");
-      link.href = fileData.dataUrl || fileData.url;
-      link.download = fileData.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error downloading document:", error);
-      alert("Error downloading document. Please try again.");
-    }
+    const docType = documentTypes.find((type) => type.id === documentType);
+    return docType?.icon || File;
   };
 
-  const openUploadModal = (employee, docType) => {
-    setSelectedEmployee(employee);
-    setSelectedDocType(docType);
-    setIsUploadModalOpen(true);
-  };
-
-  const handleSaveDocument = async (employeeId, docType, fileData) => {
-    try {
-      setIsRefreshing(true);
-
-      // First upload to Cloudinary using our service
-      const file = fileData.file; // Assuming modal passes the file object
-      if (!file) {
-        throw new Error("No file provided");
-      }
-
-      await documentService.uploadDocument(file, employeeId, docType);
-
-      // Refresh data to show updated documents
-      await fetchEmployees();
-
-      // Success notification handled by the modal
-    } catch (error) {
-      console.error("Error saving document:", error);
-      alert("Error uploading document. Please try again.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentEmployees = filteredEmployees.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-
-  // Get today's date in a nice format
-  const getTodayDate = () => {
-    return new Date().toLocaleDateString("en-US", {
-      weekday: "long",
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  // Get current time greeting
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
+  // Upload Modal Component
+  const UploadModal = () => {
+    if (!showUploadModal) return null;
 
-  // Calculate document statistics - used if API call fails
-  const calculateDocumentStats = () => {
-    let totalDocs = 0;
-    let uploadedDocs = 0;
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold">Upload Document</h3>
+            <button
+              onClick={() => {
+                setShowUploadModal(false);
+                setUploadData({ employeeId: "", documentType: "", file: null });
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-    employees.forEach((emp) => {
-      documentTypes.forEach((docType) => {
-        totalDocs++;
-        if (emp.documents[docType.id]) {
-          uploadedDocs++;
-        }
-      });
-    });
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Employee *
+              </label>
+              <select
+                value={uploadData.employeeId}
+                onChange={(e) =>
+                  setUploadData({ ...uploadData, employeeId: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select Employee</option>
+                {employees.map((emp) => (
+                  <option
+                    key={emp.employeeId || emp.id}
+                    value={emp.employeeId || emp.id}
+                  >
+                    {emp.name} ({emp.employeeId || emp.id})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-    setDocStats({
-      totalDocs,
-      uploadedDocs,
-      completionPercentage:
-        totalDocs > 0 ? Math.round((uploadedDocs / totalDocs) * 100) : 0,
-    });
-  };
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Document Type *
+              </label>
+              <select
+                value={uploadData.documentType}
+                onChange={(e) =>
+                  setUploadData({ ...uploadData, documentType: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select Document Type</option>
+                {documentTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-  // Migrate legacy documents for all employees
-  const migrateLegacyDocuments = async () => {
-    if (
-      !window.confirm(
-        "This will migrate all legacy documents stored in localStorage to the cloud storage. Continue?"
-      )
-    ) {
-      return;
-    }
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                File *
+              </label>
+              <input
+                type="file"
+                onChange={(e) =>
+                  setUploadData({ ...uploadData, file: e.target.files[0] })
+                }
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.txt"
+                required
+              />
+              {uploadData.file && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Selected: {uploadData.file.name} (
+                  {formatFileSize(uploadData.file.size)})
+                </div>
+              )}
+            </div>
+          </div>
 
-    setIsRefreshing(true);
-    let migratedCount = 0;
-    let failedCount = 0;
-
-    try {
-      for (const employee of employees) {
-        const employeeId = employee.employeeId || employee._id;
-        if (!employeeId) continue;
-
-        try {
-          const result = await documentService.migrateLocalDocumentsToBackend(
-            employeeId
-          );
-          migratedCount += result.migratedCount;
-          failedCount += result.failedCount;
-        } catch (empError) {
-          console.error(
-            `Failed to migrate documents for employee ${employeeId}:`,
-            empError
-          );
-          failedCount++;
-        }
-      }
-
-      alert(
-        `Migration complete: ${migratedCount} documents migrated successfully, ${failedCount} failed.`
-      );
-
-      // Refresh to show updated data
-      await fetchEmployees();
-    } catch (error) {
-      console.error("Error during bulk migration:", error);
-      alert("There was an error during document migration. Please try again.");
-    } finally {
-      setIsRefreshing(false);
-    }
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              onClick={() => {
+                setShowUploadModal(false);
+                setUploadData({ employeeId: "", documentType: "", file: null });
+              }}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleFileUpload}
+              disabled={
+                loading ||
+                !uploadData.file ||
+                !uploadData.employeeId ||
+                !uploadData.documentType
+              }
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Uploading..." : "Upload Document"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div>
-              <h1 className="text-3xl font-bold mb-1">
-                {getGreeting()}, {username} 👋
-              </h1>
-              <p className="opacity-80 text-lg">{getTodayDate()}</p>
-            </div>
-            <div className="mt-4 md:mt-0 flex items-center space-x-2">
-              <button
-                onClick={refreshData}
-                className={`bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center transition-all ${
-                  isRefreshing ? "opacity-50 cursor-wait" : ""
-                }`}
-                disabled={isRefreshing}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${
-                    isRefreshing ? "animate-spin" : ""
-                  }`}
-                />
-                Refresh Data
-              </button>
-              <button
-                onClick={migrateLegacyDocuments}
-                className="bg-white text-indigo-700 px-4 py-2 rounded-lg flex items-center transition-all hover:bg-opacity-90 shadow-lg hover:shadow-xl"
-                disabled={isRefreshing}
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Migrate Legacy Docs
-              </button>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <FolderOpen className="h-8 w-8 text-blue-600 mr-3" />
+              Documents Management
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage employee documents and files
+            </p>
           </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center">
-            <div className="mb-4 lg:mb-0">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <FileText className="mr-2 h-5 w-5 text-indigo-600" />
-                Document Management
-              </h2>
-              <p className="text-gray-500 text-sm">
-                Manage all your employee documents in one place
-              </p>
-            </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={loadData}
+              disabled={loading}
+              className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Document
+            </button>
           </div>
         </div>
 
-        {/* Statistics Overview */}
-        <div className="mb-8">
-          <DocumentStatsCards
-            employees={employees}
-            documentTypes={documentTypes}
-            docStats={docStats}
-          />
-        </div>
+        {/* Notifications */}
+        {error && (
+          <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            {error}
+            <button onClick={() => setError(null)} className="ml-auto">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
-        {/* Filters and Search */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 mb-6 overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-              <div className="relative flex-grow max-w-md">
-                <SearchBar
-                  setFilteredEmployees={setFilteredEmployees}
-                  setSearchQuery={setSearchQuery}
-                  employees={employees}
-                />
+        {success && (
+          <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center">
+            <CheckCircle className="h-5 w-5 mr-2" />
+            {success}
+            <button onClick={() => setSuccess(null)} className="ml-auto">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Documents</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalDocuments}
+                </p>
               </div>
-
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <button
-                    onClick={() => setFilterOpen(!filterOpen)}
-                    className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm"
-                  >
-                    <Filter className="h-4 w-4 mr-2 text-indigo-600" />
-                    Filter
-                    <ChevronDown
-                      className={`ml-2 h-4 w-4 transform transition-transform ${
-                        filterOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {filterOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-10 border border-gray-200 overflow-hidden">
-                      <div className="py-1">
-                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                          <p className="text-sm font-medium text-gray-700">
-                            Filter by Status
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setStatusFilter("all");
-                            setFilterOpen(false);
-                          }}
-                          className={`flex items-center px-4 py-3 text-sm w-full text-left hover:bg-gray-50 border-l-4 ${
-                            statusFilter === "all"
-                              ? "border-indigo-600 bg-indigo-50/50 text-indigo-700"
-                              : "border-transparent"
-                          }`}
-                        >
-                          <Users className="h-4 w-4 mr-2 text-gray-500" />
-                          All Employees
-                        </button>
-                        <button
-                          onClick={() => {
-                            setStatusFilter("complete");
-                            setFilterOpen(false);
-                          }}
-                          className={`flex items-center px-4 py-3 text-sm w-full text-left hover:bg-gray-50 border-l-4 ${
-                            statusFilter === "complete"
-                              ? "border-green-600 bg-green-50/50 text-green-700"
-                              : "border-transparent"
-                          }`}
-                        >
-                          <FileText className="h-4 w-4 mr-2 text-gray-500" />
-                          Complete Documentation
-                        </button>
-                        <button
-                          onClick={() => {
-                            setStatusFilter("missing");
-                            setFilterOpen(false);
-                          }}
-                          className={`flex items-center px-4 py-3 text-sm w-full text-left hover:bg-gray-50 border-l-4 ${
-                            statusFilter === "missing"
-                              ? "border-red-600 bg-red-50/50 text-red-700"
-                              : "border-transparent"
-                          }`}
-                        >
-                          <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                          Missing Documents
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div className="p-3 rounded-full bg-blue-100">
+                <FileText className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          {/* Active filters display */}
-          {statusFilter !== "all" && (
-            <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center">
-                <span className="text-sm text-gray-600 mr-2">
-                  Active filters:
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full flex items-center ${
-                    statusFilter === "complete"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {statusFilter === "complete"
-                    ? "Complete Documentation"
-                    : "Missing Documents"}
-                  <button
-                    onClick={() => setStatusFilter("all")}
-                    className="ml-1 hover:text-gray-800"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
+          <div className="bg-white p-6 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Employees with Docs</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalEmployees}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-green-100">
+                <Users className="h-6 w-6 text-green-600" />
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="bg-white p-6 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Document Types</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.documentTypes}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-purple-100">
+                <Folder className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Recent Uploads</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.recentUploads}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-orange-100">
+                <Upload className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Employee Documents Table */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-          <DocumentsTable
-            employees={currentEmployees}
-            documentTypes={documentTypes}
-            isLoading={isLoading}
-            onOpenUploadModal={openUploadModal}
-            onDownloadDocument={handleDownload}
-            onDeleteDocument={handleDeleteDocument}
-          />
-
-          {/* Pagination */}
-          {filteredEmployees.length > itemsPerPage && (
-            <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-t border-gray-200 flex justify-between items-center">
-              <div className="text-gray-700 text-sm">
-                Showing {indexOfFirstItem + 1} to{" "}
-                {Math.min(indexOfLastItem, filteredEmployees.length)} of{" "}
-                {filteredEmployees.length} entries
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
+        {/* Filters */}
+        <div className="bg-white p-6 rounded-lg border mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search documents..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Employees</option>
+              {employees.map((emp) => (
+                <option
+                  key={emp.employeeId || emp.id}
+                  value={emp.employeeId || emp.id}
+                >
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDocType}
+              onChange={(e) => setSelectedDocType(e.target.value)}
+              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Document Types</option>
+              {documentTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="text-sm text-gray-600">
+              Showing {filteredDocuments.length} of {documents.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Documents Grid */}
+        <div className="bg-white rounded-lg border overflow-hidden">
+          {loading ? (
+            <div className="p-12 text-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Loading documents...</p>
+            </div>
+          ) : filteredDocuments.length === 0 ? (
+            <div className="p-12 text-center">
+              <FolderOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No documents found</p>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Upload First Document
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Document
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Employee
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Size
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Uploaded
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredDocuments.map((document) => {
+                    const FileIcon = getFileIcon(
+                      document.name,
+                      document.documentType
+                    );
+                    const docType = documentTypes.find(
+                      (type) => type.id === document.documentType
+                    );
+
+                    return (
+                      <tr key={document.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <div className="p-2 rounded-lg bg-blue-100 mr-4">
+                              <FileIcon className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {document.name || "Untitled Document"}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {document.type || "Unknown type"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {getEmployeeName(document.employeeId)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {document.employeeId || "N/A"}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {docType?.name || document.documentType || "Other"}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {formatFileSize(document.size || 0)}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {formatDate(
+                            document.createdAt || document.uploadDate
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            {document.url && (
+                              <a
+                                href={document.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-900 p-1"
+                                title="View Document"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            )}
+                            {document.url && (
+                              <a
+                                href={document.url}
+                                download
+                                className="text-green-600 hover:text-green-900 p-1"
+                                title="Download Document"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            )}
+                            <button
+                              onClick={() =>
+                                handleDeleteDocument(document.id, document.name)
+                              }
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Delete Document"
+                              disabled={loading}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
+        </div>
+
+        {/* Document Types Overview */}
+        <div className="mt-8 bg-white p-6 rounded-lg border">
+          <h3 className="text-lg font-semibold mb-4">
+            Document Types Overview
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {documentTypes.map((type) => {
+              const count = documents.filter(
+                (doc) => doc.documentType === type.id
+              ).length;
+              const IconComponent = type.icon;
+
+              return (
+                <div
+                  key={type.id}
+                  className="p-4 border rounded-lg text-center"
+                >
+                  <div className="flex justify-center mb-2">
+                    <div className="p-3 rounded-full bg-gray-100">
+                      <IconComponent className="h-6 w-6 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {type.name}
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">{count}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Upload Document Modal */}
-      <DocumentUploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        employee={selectedEmployee}
-        documentType={selectedDocType}
-        documentTypes={documentTypes}
-        onSave={handleSaveDocument}
-      />
+      {/* Upload Modal */}
+      <UploadModal />
     </div>
   );
 };

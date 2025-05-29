@@ -3,7 +3,7 @@
  * Integrated API service for making authenticated requests to the backend
  */
 
-const API_BASE_URL = "http://localhost:3000/api";
+const API_BASE_URL = "https://getmax-backend.vercel.app/api";
 
 /**
  * Get authentication token from localStorage

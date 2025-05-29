@@ -19,7 +19,7 @@ import FoldersList from "../folders/FoldersList";
 import AddFolderModal from "../folders/AddFolderModal";
 import EditSpaceModal from "./EditSpaceModal";
 import useSpacesStore from "@/store/useSpacesStore";
-import { spaceTemplates } from "@/utils/theme"
+import { spaceTemplates } from "@/utils/theme";
 
 const SpaceItem = ({
   space,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 
 // Base API URL from environment variable
-const API_BASE_URL = "http://localhost:3000/api";
+const API_BASE_URL = "https://getmax-backend.vercel.app/api";
 
 const AdminPanel = () => {
   const [employees, setEmployees] = useState([]);
@@ -20,7 +20,7 @@ const AdminPanel = () => {
 
   const inspectDatabase = async () => {
     const token = localStorage.getItem("token");
-    const API_BASE_URL = "http://localhost:3000/api";
+    const API_BASE_URL = "https://getmax-backend.vercel.app/api";
 
     console.log("=== DATABASE INSPECTION ===");
 

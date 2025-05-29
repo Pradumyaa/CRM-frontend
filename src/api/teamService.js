@@ -1,14 +1,17 @@
-// api/teamService.js
-import apiClient from './apiClient';
+// api/teamService.js - Complete team service
+import apiClient from "./apiClient.js";
+
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app";
 
 export const teamService = {
   // Get all team members
   getAllTeamMembers: async () => {
     try {
-      const response = await apiClient.get('/workspace/team');
+      const response = await apiClient.get(`${BASE_URL}/api/workspace/team`);
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching team members:', error);
+      console.error("Error fetching team members:", error);
       throw error;
     }
   },
@@ -16,10 +19,12 @@ export const teamService = {
   // Get a specific team member
   getTeamMember: async (userId) => {
     try {
-      const response = await apiClient.get(`/workspace/team/${userId}`);
+      const response = await apiClient.get(
+        `${BASE_URL}/api/workspace/team/${userId}`
+      );
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching team member:', error);
+      console.error("Error fetching team member:", error);
       throw error;
     }
   },
@@ -27,10 +32,13 @@ export const teamService = {
   // Add a new team member (admin only)
   addTeamMember: async (memberData) => {
     try {
-      const response = await apiClient.post('/workspace/team', memberData);
+      const response = await apiClient.post(
+        `${BASE_URL}/api/workspace/team`,
+        memberData
+      );
       return response.data.data;
     } catch (error) {
-      console.error('Error adding team member:', error);
+      console.error("Error adding team member:", error);
       throw error;
     }
   },
@@ -38,10 +46,13 @@ export const teamService = {
   // Update a team member
   updateTeamMember: async (userId, updateData) => {
     try {
-      const response = await apiClient.put(`/workspace/team/${userId}`, updateData);
+      const response = await apiClient.put(
+        `${BASE_URL}/api/workspace/team/${userId}`,
+        updateData
+      );
       return response.data.data;
     } catch (error) {
-      console.error('Error updating team member:', error);
+      console.error("Error updating team member:", error);
       throw error;
     }
   },
@@ -49,13 +60,30 @@ export const teamService = {
   // Remove a team member (admin only)
   removeTeamMember: async (userId) => {
     try {
-      const response = await apiClient.delete(`/workspace/team/${userId}`);
+      const response = await apiClient.delete(
+        `${BASE_URL}/api/workspace/team/${userId}`
+      );
       return response.data;
     } catch (error) {
-      console.error('Error removing team member:', error);
+      console.error("Error removing team member:", error);
       throw error;
     }
-  }
+  },
+
+  // Get team members for a specific space
+  getSpaceMembers: async (spaceId) => {
+    try {
+      const employeeId = localStorage.getItem("employeeId");
+      const response = await apiClient.get(
+        `${BASE_URL}/api/workspace/spaces/${spaceId}/members`,
+        { params: { employeeId } }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching space members:", error);
+      throw error;
+    }
+  },
 };
 
 export default teamService;
