@@ -1,8 +1,7 @@
 // services/adminApiService.js - Comprehensive API service for SuperAdmin panel
 class AdminApiService {
   constructor() {
-    this.baseURL =
-      process.env.REACT_APP_API_URL || "https://getmax-backend.vercel.app/api";
+    this.baseURL = process.env.REACT_APP_API_URL || "http://localhost:3000/api";
     this.token = localStorage.getItem("token");
   }
 

@@ -1,8 +1,7 @@
 // api/folderService.js - Complete folder service
 import apiClient from "./apiClient.js";
 
-const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const folderService = {
   // Get all folders for a space

@@ -9,7 +9,7 @@ class ResumeParserService {
   constructor() {
     // Use window.location.origin for browser compatibility
     const baseUrl = window.location.origin.includes("localhost")
-      ? "https://getmax-backend.vercel.app"
+      ? "http://localhost:3000"
       : window.location.origin;
 
     this.apiBaseUrl = `${baseUrl}/api`;

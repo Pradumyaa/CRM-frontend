@@ -1,4 +1,4 @@
-// Updated Sidebar.jsx with new organization structure
+// Updated Sidebar.jsx with complete super_admin access
 import { useState } from "react";
 import {
   MdKeyboardArrowRight,
@@ -38,7 +38,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   const navigate = useNavigate();
 
   // Use authentication context
-  const { user, isAdmin, logout, userRole } = useAuth();
+  const { user, isAdmin, logout, userRole, isSuperAdmin } = useAuth();
 
   // Role hierarchy for access control
   const ROLE_LEVELS = {
@@ -61,7 +61,9 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
   const currentUserLevel = ROLE_LEVELS[userRole] || 14;
 
   // Check if user has access to a feature based on role level
+  // Super admin gets access to everything
   const hasAccess = (requiredLevel) => {
+    if (isSuperAdmin || userRole === "super_admin") return true;
     return currentUserLevel <= requiredLevel;
   };
 
@@ -72,130 +74,96 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
     { label: "Attendance", icon: <MdDateRange size={18} />, key: "help" },
   ];
 
-  // Organization section with role-based sub-items
+  // Organization section with ALL possible sub-items
   const organizationItems = {
     label: "Organisation",
     icon: <MdBusinessCenter size={18} />,
     hasDropdown: true,
     key: "organisation",
     subItems: [
-      // Always visible to admins and above
-      ...(hasAccess(3)
-        ? [
-            {
-              label: "Employee List",
-              key: "employeeList",
-              icon: <MdPeople size={16} />,
-              requiredLevel: 3,
-            },
-            {
-              label: "Super Admin Panel",
-              key: "superAdminPanel",
-              icon: <MdAdminPanelSettings size={16} />,
-              requiredLevel: 1,
-            },
-          ]
-        : []),
+      // Employee Management
+      {
+        label: "Employee List",
+        key: "employeeList",
+        icon: <MdPeople size={16} />,
+        requiredLevel: 3,
+      },
 
-      // Role Management - Super Admin and Product Owner only
-      ...(hasAccess(2)
-        ? [
-            {
-              label: "Role Management",
-              key: "roleManagement",
-              icon: <MdSecurity size={16} />,
-              requiredLevel: 2,
-            },
-          ]
-        : []),
+      // Super Admin Panel - Only for super_admin
+      {
+        label: "Super Admin Panel",
+        key: "superAdminPanel",
+        icon: <MdAdminPanelSettings size={16} />,
+        requiredLevel: 1,
+      },
 
-      // Documents - Accessible to managers and above
-      ...(hasAccess(6)
-        ? [
-            {
-              label: "Documents",
-              key: "documents",
-              icon: <MdFolderOpen size={16} />,
-              requiredLevel: 6,
-            },
-          ]
-        : []),
+      // Role Management - Super Admin and Product Owner
+      {
+        label: "Role Management",
+        key: "roleManagement",
+        icon: <MdSecurity size={16} />,
+        requiredLevel: 2,
+      },
 
-      // Activity Tracker - Visible to team leads and above
-      ...(hasAccess(9)
-        ? [
-            {
-              label: "Activity Tracker",
-              key: "activityTracker",
-              icon: <MdTrackChanges size={16} />,
-              requiredLevel: 9,
-            },
-          ]
-        : []),
+      // Documents
+      {
+        label: "Documents",
+        key: "documents",
+        icon: <MdFolderOpen size={16} />,
+        requiredLevel: 6,
+      },
 
-      // Analytics - Different levels of access
-      ...(hasAccess(5)
-        ? [
-            {
-              label: "Analytics",
-              key: "analytics",
-              icon: <MdAnalytics size={16} />,
-              requiredLevel: 5,
-            },
-          ]
-        : []),
+      // Activity Tracker
+      {
+        label: "Activity Tracker",
+        key: "activityTracker",
+        icon: <MdTrackChanges size={16} />,
+        requiredLevel: 9,
+      },
 
-      // Reports - Accessible to managers and above
-      ...(hasAccess(6)
-        ? [
-            {
-              label: "Reports",
-              key: "reports",
-              icon: <MdBarChart size={16} />,
-              requiredLevel: 6,
-            },
-          ]
-        : []),
+      // Analytics
+      {
+        label: "Analytics",
+        key: "analytics",
+        icon: <MdAnalytics size={16} />,
+        requiredLevel: 5,
+      },
 
-      // Requests - Accessible to assistant managers and above
-      ...(hasAccess(7)
-        ? [
-            {
-              label: "Requests",
-              key: "requests",
-              icon: <MdRequestPage size={16} />,
-              requiredLevel: 7,
-            },
-          ]
-        : []),
+      // Reports
+      {
+        label: "Reports",
+        key: "reports",
+        icon: <MdBarChart size={16} />,
+        requiredLevel: 6,
+      },
 
-      // Department Management - CXO/Director and above
-      ...(hasAccess(4)
-        ? [
-            {
-              label: "Departments",
-              key: "departments",
-              icon: <MdBusiness size={16} />,
-              requiredLevel: 4,
-            },
-          ]
-        : []),
+      // Requests
+      {
+        label: "Requests",
+        key: "requests",
+        icon: <MdRequestPage size={16} />,
+        requiredLevel: 7,
+      },
+
+      // Department Management
+      {
+        label: "Departments",
+        key: "departments",
+        icon: <MdBusiness size={16} />,
+        requiredLevel: 4,
+      },
 
       // Permissions - Super Admin only
-      ...(hasAccess(1)
-        ? [
-            {
-              label: "Permissions",
-              key: "permissions",
-              icon: <MdVerifiedUser size={16} />,
-              requiredLevel: 1,
-            },
-          ]
-        : []),
+      {
+        label: "Permissions",
+        key: "permissions",
+        icon: <MdVerifiedUser size={16} />,
+        requiredLevel: 1,
+      },
     ],
   };
 
-  // Filter out items user doesn't have access to
+  // Filter items based on access (super_admin sees everything)
   const filteredOrganizationItems = {
     ...organizationItems,
     subItems: organizationItems.subItems.filter((item) =>
@@ -203,26 +171,25 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
     ),
   };
 
-  // Additional sections based on role
+  // Additional sections - super_admin gets access to all
   const additionalItems = [];
 
-  // Add other sections for appropriate roles
+  // Chat and Workspaces (Team leads and above, but super_admin gets all)
   if (hasAccess(8)) {
-    // Team leads and above
     additionalItems.push(
       { label: "Chat", icon: <MdChat size={18} />, key: "chat" },
       { label: "Workspaces", icon: <MdWorkspaces size={18} />, key: "spaces" }
     );
   }
 
-  // if (hasAccess(6)) {
-  //   // Managers and above
-  //   additionalItems.push({
-  //     label: "Income",
-  //     icon: <MdAttachMoney size={18} />,
-  //     key: "income",
-  //   });
-  // }
+  // Income section (Managers and above, but super_admin gets all)
+  if (hasAccess(6)) {
+    additionalItems.push({
+      label: "Income",
+      icon: <MdAttachMoney size={18} />,
+      key: "income",
+    });
+  }
 
   // Build final navigation items
   const navigationItems = [
@@ -329,10 +296,18 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                 <p className="text-xs text-gray-600">
                   {getRoleDisplayName(userRole)}
                 </p>
+                {/* Super Admin Badge */}
+                {isSuperAdmin && (
+                  <p className="text-xs text-purple-600 font-medium">
+                    ⭐ Full Access
+                  </p>
+                )}
               </div>
               <div
                 className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  currentUserLevel <= 3
+                  isSuperAdmin
+                    ? "bg-purple-100 text-purple-800 border border-purple-300"
+                    : currentUserLevel <= 3
                     ? "bg-purple-100 text-purple-800"
                     : currentUserLevel <= 6
                     ? "bg-blue-100 text-blue-800"
@@ -341,7 +316,7 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                     : "bg-gray-100 text-gray-800"
                 }`}
               >
-                L{currentUserLevel}
+                {isSuperAdmin ? "SA" : `L${currentUserLevel}`}
               </div>
             </div>
           </div>
@@ -485,15 +460,20 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
                                 {subItem.label}
                               </span>
 
-                              {/* Role level indicator */}
+                              {/* Role level indicator or Super Admin badge */}
                               <span
                                 className={`text-xs px-2 py-1 rounded-full ${
                                   selectedItem === subItem.key
                                     ? "bg-white/20 text-white"
+                                    : isSuperAdmin &&
+                                      subItem.requiredLevel === 1
+                                    ? "bg-purple-200 text-purple-800 group-hover:bg-purple-300"
                                     : "bg-gray-200 text-gray-600 group-hover:bg-[#5932EA]/10 group-hover:text-[#5932EA]"
                                 }`}
                               >
-                                L{subItem.requiredLevel}
+                                {isSuperAdmin && subItem.requiredLevel === 1
+                                  ? "SA"
+                                  : `L${subItem.requiredLevel}`}
                               </span>
                             </div>
                           </button>
@@ -582,8 +562,12 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
               <p>&copy; 2024 Dashboard. All rights reserved.</p>
               <p className="mt-1">
                 Access Level:{" "}
-                <span className="font-medium text-[#5932EA]">
-                  L{currentUserLevel}
+                <span
+                  className={`font-medium ${
+                    isSuperAdmin ? "text-purple-600" : "text-[#5932EA]"
+                  }`}
+                >
+                  {isSuperAdmin ? "Super Admin" : `L${currentUserLevel}`}
                 </span>
               </p>
             </div>

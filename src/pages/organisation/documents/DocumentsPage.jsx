@@ -65,16 +65,13 @@ const DocumentsPage = () => {
   // API call wrapper
   const apiCall = async (url, options = {}) => {
     const token = getAuthToken();
-    const response = await fetch(
-      `https://getmax-backend.vercel.app/api${url}`,
-      {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...options.headers,
-        },
-      }
-    );
+    const response = await fetch(`http://localhost:3000/api${url}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -127,7 +124,7 @@ const DocumentsPage = () => {
 
       const token = getAuthToken();
       const response = await fetch(
-        "https://getmax-backend.vercel.app/api/documents/upload",
+        "http://localhost:3000/api/documents/upload",
         {
           method: "POST",
           headers: {

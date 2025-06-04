@@ -11,23 +11,28 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, user } = useAuth();
+  const { login, user, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
 
   // If already logged in, redirect to dashboard
   useEffect(() => {
-    if (user) {
-      navigate("/");
-    } else {
-      // Check for remembered employee ID
-      const rememberedId = localStorage.getItem("rememberedEmployeeId");
-      if (rememberedId) {
-        setEmployeeId(rememberedId);
-        setRememberMe(true);
+    // Wait for auth loading to complete first
+    if (!loading) {
+      if (user && isAuthenticated) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        // Check for remembered employee ID
+        const rememberedId = localStorage.getItem("rememberedEmployeeId");
+        const shouldRemember = localStorage.getItem("rememberMe") === "true";
+
+        if (rememberedId && shouldRemember) {
+          setEmployeeId(rememberedId);
+          setRememberMe(true);
+        }
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
-  }, [user, navigate]);
+  }, [user, isAuthenticated, loading, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -36,9 +41,15 @@ const LoginPage = () => {
 
     try {
       // Call the login function from AuthContext
-      await login(employeeId, password, rememberMe);
+      const result = await login(employeeId, password, rememberMe);
 
-      // Redirect will happen automatically through the useEffect
+      if (result.success) {
+        // Success! Navigation will be handled by the AuthContext
+        console.log("Login successful, redirecting...");
+      } else {
+        // Handle login failure
+        setErrorMessage(result.error || "Login failed. Please try again.");
+      }
     } catch (error) {
       setErrorMessage(
         error.message ||
@@ -50,10 +61,14 @@ const LoginPage = () => {
     }
   };
 
-  if (isLoading) {
+  // Show loading while auth is initializing
+  if (loading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="text-gray-600 text-xl">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="text-gray-600 text-xl mt-4">Loading...</div>
+        </div>
       </div>
     );
   }
@@ -132,7 +147,7 @@ const LoginPage = () => {
 
               {/* Error Message */}
               {errorMessage && (
-                <div className="text-red-500 text-center mt-2">
+                <div className="text-red-500 text-center mt-2 text-sm">
                   {errorMessage}
                 </div>
               )}

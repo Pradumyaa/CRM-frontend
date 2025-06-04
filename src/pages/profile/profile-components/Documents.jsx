@@ -406,7 +406,7 @@ const Documents = ({ employeeId, isAdmin, isOwnProfile, onDocumentUpload }) => {
           if (token) {
             // Call the skills endpoint to trigger fresh extraction
             await fetch(
-              `https://getmax-backend.vercel.app/api/resume/skills/${employeeId}`,
+              `http://localhost:3000/api/resume/skills/${employeeId}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,

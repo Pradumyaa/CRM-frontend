@@ -8,7 +8,7 @@ import axios from "axios";
 class DocumentService {
   constructor() {
     this.apiBaseUrl =
-      import.meta.env.VITE_API_URL || "https://getmax-backend.vercel.app/api";
+      import.meta.env.VITE_API_URL || "http://localhost:3000/api";
     this.token = localStorage.getItem("token");
   }
 

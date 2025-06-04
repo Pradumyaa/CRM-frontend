@@ -89,7 +89,7 @@ const ProfilePage = ({ profileId }) => {
         }
 
         const response = await fetch(
-          `https://getmax-backend.vercel.app/api/employees/admin/${currentEmployeeId}`,
+          `http://localhost:3000/api/employees/admin/${currentEmployeeId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -224,7 +224,7 @@ const ProfilePage = ({ profileId }) => {
 
         // Fetch employee data from backend with authentication token
         const response = await fetch(
-          `https://getmax-backend.vercel.app/api/employees/${employeeId}`,
+          `http://localhost:3000/api/employees/${employeeId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -277,7 +277,7 @@ const ProfilePage = ({ profileId }) => {
       }
 
       const response = await fetch(
-        `https://getmax-backend.vercel.app/api/employees/${employeeId}`,
+        `http://localhost:3000/api/employees/${employeeId}`,
         {
           method: "PUT",
           headers: {
@@ -323,7 +323,7 @@ const ProfilePage = ({ profileId }) => {
         const token = localStorage.getItem("token");
 
         const response = await fetch(
-          "https://getmax-backend.vercel.app/api/images/upload",
+          "http://localhost:3000/api/images/upload",
           {
             method: "POST",
             headers: {

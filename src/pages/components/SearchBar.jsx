@@ -83,7 +83,7 @@ const SearchBar = ({ setFilteredEmployees, setSearchQuery, employees }) => {
 
     try {
       const res = await axios.post(
-        "https://getmax-backend.vercel.app/api/employees/search",
+        "http://localhost:3000/api/employees/search",
         { name: query },
         { headers: { "Content-Type": "application/json" } }
       );
