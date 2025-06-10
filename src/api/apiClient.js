@@ -3,7 +3,7 @@ import axios from "axios";
 
 // Base URL for API requests - dynamically set based on environment
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app/api";
 
 // Create Axios instance with default config
 const apiClient = axios.create({

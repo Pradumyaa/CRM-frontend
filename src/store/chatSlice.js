@@ -5,7 +5,7 @@ import axios from "axios";
 // Create axios instance with interceptors for auth
 const createAuthenticatedAxios = () => {
   const axiosInstance = axios.create({
-    baseURL: "http://localhost:3000",
+    baseURL: "https://getmax-backend.vercel.app",
   });
 
   // Request interceptor to add auth token
@@ -45,7 +45,7 @@ const api = createAuthenticatedAxios();
 const initializeSocket = () => {
   const token = localStorage.getItem("token");
 
-  return io("http://localhost:3000", {
+  return io("https://getmax-backend.vercel.app", {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     autoConnect: true,

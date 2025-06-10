@@ -253,7 +253,7 @@ function CRMLayout() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar selectedItem={selectedItem} onItemSelect={setSelectedItem} />
       <div className="flex-1 min-h-screen overflow-auto">
-        <div className="p-6">{getDefaultContent()}</div>
+        {getDefaultContent()}
       </div>
     </div>
   );

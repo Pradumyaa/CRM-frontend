@@ -256,9 +256,15 @@ const Sidebar = ({ selectedItem, onItemSelect }) => {
     <>
       {/* Sidebar */}
       <aside
-        className={`bg-white shadow-lg border-r border-gray-200 fixed md:relative transition-all duration-300 ease-in-out flex flex-col h-screen ${
-          isSidebarOpen ? "w-[280px]" : "w-[60px]"
-        }`}
+        //     className={`bg-white shadow-lg before:content-[''] before:absolute before:top-0 before:right-0 before:w-[2px] before:h-full
+        // before:bg-gradient-to-b before:from-indigo-600 before:via-purple-600 before:to-pink-600 fixed md:relative transition-all duration-300 ease-in-out flex flex-col h-screen ${
+        //   isSidebarOpen ? "w-[280px]" : "w-[60px]"
+        // }`}
+
+        className={`bg-white shadow-lg fixed md:relative transition-all duration-300 ease-in-out flex flex-col h-screen ${
+          isSidebarOpen ? "w-[265px]" : "w-[60px]"
+        }
+        z-50 top-0 left-0 border-r-2 border-gray-300 overflow-hidden`}
       >
         {/* Sidebar Header */}
         <div

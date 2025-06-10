@@ -2,7 +2,7 @@
 
 // For Vite, use import.meta.env instead of process.env
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+  import.meta.env.VITE_API_URL || "https://getmax-backend.vercel.app/api";
 
 /**
  * Enhanced Base API client for making requests to the backend

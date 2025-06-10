@@ -1,7 +1,8 @@
 // api/spaceService.js - Complete space service
 import apiClient from "./apiClient.js";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://getmax-backend.vercel.app";
 
 export const spaceService = {
   // Get all spaces for the current user

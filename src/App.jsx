@@ -18,6 +18,7 @@ import ProductsPage from "./pages/public/ProductsPage.jsx";
 import ContactPage from "./pages/public/ContactPage.jsx";
 import AboutPage from "./pages/public/AboutPage.jsx";
 import LoginPage from "./pages/login/LoginPage.jsx";
+import SocketDebug from "./components/SocketDebug.jsx";
 
 // Import CRM App
 import CRMApp from "./apps/CMRApp.jsx";
@@ -101,6 +102,16 @@ function AppRoutes() {
         element={
           <PublicLayout currentPage="/contact">
             <ContactPage />
+          </PublicLayout>
+        }
+      />
+
+      {/* Debug Route - Socket Debugging */}
+      <Route
+        path="/debug/socket"
+        element={
+          <PublicLayout currentPage="/debug/socket">
+            <SocketDebug />
           </PublicLayout>
         }
       />

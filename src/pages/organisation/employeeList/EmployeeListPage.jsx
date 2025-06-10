@@ -118,7 +118,7 @@ const EmployeeListPage = () => {
 
     try {
       const response = await axios.get(
-        "http://localhost:3000/api/employees",
+        "https://getmax-backend.vercel.app/api/employees",
         getAuthHeaders()
       );
 
@@ -248,7 +248,7 @@ const EmployeeListPage = () => {
 
     try {
       await axios.delete(
-        `http://localhost:3000/api/employees/${employeeId}`,
+        `https://getmax-backend.vercel.app/api/employees/${employeeId}`,
         getAuthHeaders()
       );
 

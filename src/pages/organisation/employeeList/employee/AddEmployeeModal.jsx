@@ -16,7 +16,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = "https://getmax-backend.vercel.app/api";
 
 // API helper functions
 const apiRequest = async (url, options = {}) => {
