@@ -167,16 +167,18 @@ function AppRoutes() {
 
 // Main App Component
 function App() {
-  // Initialize page tracking
-  usePageTracking();
-
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <TrackedRoutes />
       </AuthProvider>
     </Router>
   );
+}
+
+function TrackedRoutes() {
+  usePageTracking(); // ✅ now this will not throw error
+  return <AppRoutes />;
 }
 
 export default App;
