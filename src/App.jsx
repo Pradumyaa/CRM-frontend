@@ -23,6 +23,9 @@ import SocketDebug from "./components/SocketDebug.jsx";
 // Import CRM App
 import CRMApp from "./apps/CMRApp.jsx";
 
+// Import Page Tracking Hook
+import usePageTracking from "./hooks/usePageTracking.jsx";
+
 // Protected route wrapper for CRM
 function ProtectedCRMRoute({ children }) {
   const { user, loading } = useAuth();
@@ -164,6 +167,9 @@ function AppRoutes() {
 
 // Main App Component
 function App() {
+  // Initialize page tracking
+  usePageTracking();
+
   return (
     <Router>
       <AuthProvider>
